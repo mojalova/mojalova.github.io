@@ -77,7 +77,26 @@ const EN_DICT = {
   "Unesite svoj najveći mjesečni trošak kako bi vas aplikacija automatski podsjećala na njega.": "Enter your biggest monthly expense so the app can automatically remind you of it.",
   "Naziv troška": "Expense name", "Npr. Stanarina": "E.g. Rent", "Preskoči ovaj korak": "Skip this step",
   "Dijeli / Izvezi": "Share / Export", "Sažetak": "Summary", "CSV tablica": "CSV Table", "Odaberi kanal": "Select Channel", 
-  "Kopiraj": "Copy", "Kopirano!": "Copied!", "Preuzmi": "Download"
+  "Kopiraj": "Copy", "Kopirano!": "Copied!", "Preuzmi": "Download",
+  // v1.2 — backup/restore, biometry, onboarding, misc
+  "Mjesec": "Month", "Tip": "Type", "Korisnik": "User", "Redovna obveza": "Recurring obligation",
+  "Posljednjih 10 transakcija:": "Last 10 transactions:", "Generirano:": "Generated:",
+  "Sigurnosna kopija": "Backup",
+  "Izvezi (Backup)": "Export (Backup)", "Učitaj (Import / Restore)": "Import (Restore)",
+  "Napravi kopiju svih podataka u .json datoteci": "Save a backup of all data in a .json file",
+  "Vrati podatke iz prethodne kopije": "Restore data from a previous backup",
+  "Backup uspješno spremljen.": "Backup saved successfully.",
+  "Podaci su uspješno vraćeni. Aplikacija će se ponovno učitati.": "Data restored successfully. The app will reload.",
+  "Datoteka nije valjan Moja lova backup.": "The file is not a valid Moja lova backup.",
+  "Greška pri čitanju datoteke.": "Error reading the file.",
+  "Vraćanjem podataka trenutni podaci bit će ZAMIJENJENI. Nastaviti?": "Restoring will REPLACE all current data. Continue?",
+  "Biometrija otkazana ili neuspješna.": "Biometrics cancelled or failed.",
+  "Tvoj uređaj/preglednik ne podržava WebAuthn (Biometriju) ili aplikacija nije na HTTPS protokolu.": "Your device/browser does not support WebAuthn (Biometrics) or the app is not on HTTPS.",
+  "Biometrija uspješno aktivirana!": "Biometrics successfully activated!",
+  "Postavljanje biometrije nije uspjelo.\nProvjeri je li aplikacija na sigurnoj vezi (HTTPS) i koristiš li podržan uređaj.": "Biometrics setup failed.\nMake sure the app is on a secure connection (HTTPS) and your device is supported.",
+  "Jezik": "Language", "Hrvatski": "Croatian", "Engleski": "English",
+  "Obveza": "Obligation", "Čeka": "Pending", "Obrada": "Processing", "Rata": "Rate",
+  "u tekućoj god.": "in current year", "mj.": "mo.", "obroka preostalo": "installments remaining", "mj. preostalo": "months remaining"
 };
 
 const DEF_LISTS = {
@@ -140,7 +159,7 @@ const Ic = ({ n, s=20, c="#fff", style={} }) => {
     home:        <><path d="M3 12l9-9 9 9"{...p}/><path d="M5 10v10h4v-6h6v6h4V10"{...p}/></>,
     list:        <><line x1="8" y1="6" x2="21" y2="6"{...p}/><line x1="8" y1="12" x2="21" y2="12"{...p}/><line x1="8" y1="18" x2="21" y2="18"{...p}/><circle cx="3" cy="6"  r="1" fill={c} stroke="none"/><circle cx="3" cy="12" r="1" fill={c} stroke="none"/><circle cx="3" cy="18" r="1" fill={c} stroke="none"/></>,
     bar:         <><path d="M18 20V10M12 20V4M6 20v-6"{...p}/></>,
-    gear:        <><circle cx="12" cy="12" r="3"{...p}/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 001-1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"{...p}/></>,
+    gear:        <><circle cx="12" cy="12" r="3"{...p}/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"{...p}/></>,
     plus:        <><line x1="12" y1="5" x2="12" y2="19"{...p}/><line x1="5" y1="12" x2="19" y2="12"{...p}/></>,
     check:       <><polyline points="20 6 9 17 4 12"{...p}/></>,
     x:           <><line x1="18" y1="6" x2="6" y2="18"{...p}/><line x1="6" y1="6" x2="18" y2="18"{...p}/></>,
@@ -164,7 +183,7 @@ const Ic = ({ n, s=20, c="#fff", style={} }) => {
     ul:          <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"{...p}/><polyline points="17 8 12 3 7 8"{...p}/><line x1="12" y1="3" x2="12" y2="15"{...p}/></>,
     share:       <><circle cx="18" cy="5" r="3"{...p}/><circle cx="6" cy="12" r="3"{...p}/><circle cx="18" cy="19" r="3"{...p}/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"{...p}/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"{...p}/></>,
     copy:        <><rect x="9" y="9" width="13" height="13" rx="2"{...p}/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"{...p}/></>,
-    sun:         <><circle cx="12" cy="12" r="5"{...p}/><line x1="12" y1="1" x2="12" y2="3"{...p}/><line x1="12" y1="21" x2="12" y2="23"{...p}/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"{...p}/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"{...p}/><line x1="1" y1="12" x2="3" y2="12"{...p}/><line x1="21" y2="12" x2="23" y2="12"{...p}/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"{...p}/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"{...p}/></>,
+    sun:         <><circle cx="12" cy="12" r="5"{...p}/><line x1="12" y1="1" x2="12" y2="3"{...p}/><line x1="12" y1="21" x2="12" y2="23"{...p}/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"{...p}/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"{...p}/><line x1="1" y1="12" x2="3" y2="12"{...p}/><line x1="21" y1="12" x2="23" y2="12"{...p}/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"{...p}/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"{...p}/></>,
     moon:        <><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"{...p}/></>,
     auto:        <><circle cx="12" cy="12" r="9"{...p}/><path d="M12 3v9l4 2"{...p}/></>,
     alert:       <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"{...p}/><line x1="12" y1="9" x2="12" y2="13"{...p}/><line x1="12" y1="17" x2="12.01" y2="17"{...p}/></>,
@@ -297,19 +316,19 @@ const buildSummary = (txs, year, user, t) => {
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || "—";
   return [
     `${t("Moja lova")} — ${t("Sažetak")} ${year}.`, "",
-    `${t("Profil korisnika")} : ${name}`,
+    `${t("Korisnik")} : ${name}`,
     user.phone  ? `${t("Telefon")}  : ${user.phone}`  : null,
-    user.email  ? `E-mail   : ${user.email}`  : null,
+    user.email  ? `${t("E-mail")}   : ${user.email}`  : null,
     "", "═══════════════════════════════",
     `${t("Primici")} : ${fmtEur(inc)}`,
     `${t("Troškovi")}: ${fmtEur(exp)}`,
     `${t("Bilanca")}        : ${fmtEur(inc-exp)}`,
     `${t("Stavki")}    : ${yd.length}`,
     "═══════════════════════════════", "",
-    "Posljednjih 10 transakcija:",
+    t("Posljednjih 10 transakcija:"),
     ...yd.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,10)
        .map(x=>`• ${fDate(x.date)}  ${x.type==="Primitak"?"+":"-"}${fmtEur(+x.amount||0).padStart(12)}  ${x.description}`),
-    "", `Generirano: ${fDate(new Date().toISOString().split("T")[0])}`,
+    "", `${t("Generirano:")} ${fDate(new Date().toISOString().split("T")[0])}`,
   ].filter(l=>l!==null).join("\n");
 };
 
@@ -332,8 +351,8 @@ function LockScreen({ C, sec, onUnlock, onWipe, t }) {
         }
       });
       onUnlock();
-    } catch { setErr("Biometrija otkazana ili neuspješna."); }
-  }, [onUnlock, sec.bioCredId]);
+    } catch { setErr(t("Biometrija otkazana ili neuspješna.")); }
+  }, [onUnlock, sec.bioCredId, t]);
 
   useEffect(() => {
     if (sec.bioEnabled && sec.bioCredId && window.PublicKeyCredential) {
@@ -554,6 +573,14 @@ function OnboardingScreen({ C, prefs, updPrefs, user, updUser, lists, updLists, 
             </div>
 
             <div style={{ background:C.card, padding:20, borderRadius:16, border:`1px solid ${C.border}` }}>
+              <label style={lbl}>{t("Jezik")} / Language</label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:16 }}>
+                {[["hr","Hrvatski"],["en","English"]].map(([id,lb])=>{
+                  const a = (prefs.lang || "hr") === id;
+                  return <button key={id} onClick={()=>updPrefs({lang:id})} style={{ padding:"12px 6px", borderRadius:12, border:`1.5px solid ${a?C.accent:C.border}`, background:a?`${C.accent}15`:"transparent", color:a?C.accent:C.textMuted, fontSize:13, fontWeight:a?700:500, cursor:"pointer" }}>{lb}</button>;
+                })}
+              </div>
+
               <label style={lbl}>{t("Kako se zovete?")}</label>
               <input type="text" placeholder={t("Vaše ime")} value={name} onChange={e=>setName(e.target.value)} style={fld}/>
 
@@ -760,7 +787,19 @@ export default function App() {
 
       <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:C.navBg, borderTop:`1px solid ${C.border}`, display:"flex", justifyContent:"space-around", padding:"6px 0 16px", zIndex:100, backdropFilter:"blur(12px)" }}>
         {[["dashboard","home","Početna"],["transactions","list","Transakcije"],["add","plus",""],["charts","bar","Statistika"],["settings","gear","Postavke"]].map(([id,ic,lb])=>(
-          <button key={id} onClick={()=>{ if(id==="add"){setShowActionHub(true);}else{setPage(id); setSubPg(null);} }} style={{ background:"none", border:"none", display:"flex", flexDirection:"column", alignItems:"center", gap:3, cursor:"pointer", padding:"4px 10px", borderRadius:10 }}>
+          <button key={id} onClick={()=>{
+            if (id === "add") {
+              if (drafts.length > 0) {
+                setShowActionHub(true);
+              } else {
+                setDraftEdit(null);
+                setPage("add");
+                setSubPg(null);
+              }
+            } else {
+              setPage(id); setSubPg(null);
+            }
+          }} style={{ background:"none", border:"none", display:"flex", flexDirection:"column", alignItems:"center", gap:3, cursor:"pointer", padding:"4px 10px", borderRadius:10 }}>
             {id==="add"
               ? <div style={{ width:46, height:46, borderRadius:16, background:`linear-gradient(135deg,${C.accent},${C.accentDk})`, display:"flex", alignItems:"center", justifyContent:"center", marginTop:-24, boxShadow:`0 4px 18px ${C.accentGlow}` }}><Ic n="plus" s={22} c="#fff"/></div>
               : <><Ic n={ic} s={20} c={page===id?C.accent:C.textMuted}/><span style={{ fontSize:10, color:page===id?C.accent:C.textMuted, fontWeight:page===id?600:400 }}>{t(lb)}</span></>
@@ -2054,9 +2093,76 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
     </button>
   );
 
-  const expJSON  = () => { const b=new Blob([JSON.stringify(txs,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`moja_lova_${new Date().toISOString().split("T")[0]}.json`;a.click();URL.revokeObjectURL(u); };
-  const expCSV   = () => { const b=new Blob([buildCSV(txs,t,lang)],{type:"text/csv;charset=utf-8"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`moja_lova_${new Date().toISOString().split("T")[0]}.csv`;a.click();URL.revokeObjectURL(u); };
-  const impJSON  = e  => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{ try{const d=JSON.parse(ev.target.result);if(Array.isArray(d))setTxs(d);}catch{} }; r.readAsText(f); };
+  // Complete backup — serializes all app data except PIN hash (safety).
+  const fullExport = () => {
+    try {
+      const payload = {
+        __moja_lova_backup: true,
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        app: "Moja lova",
+        data: {
+          txs:    load(K.db, []),
+          drafts: load(K.drf, []),
+          lists:  load(K.lst, DEF_LISTS),
+          user:   load(K.usr, {}),
+          prefs:  load(K.prf, {}),
+        }
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url;
+      a.download = `moja_lova_backup_${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      alert(t("Backup uspješno spremljen."));
+    } catch {
+      alert(t("Greška pri čitanju datoteke."));
+    }
+  };
+
+  // Restore — validates payload, confirms, writes to localStorage, reloads.
+  const fullImport = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onerror = () => alert(t("Greška pri čitanju datoteke."));
+    reader.onload = (ev) => {
+      let parsed;
+      try { parsed = JSON.parse(ev.target.result); }
+      catch { alert(t("Datoteka nije valjan Moja lova backup.")); return; }
+
+      // Accept new format (__moja_lova_backup wrapper) OR legacy format (plain txs array)
+      let data = null;
+      if (parsed && parsed.__moja_lova_backup && parsed.data && typeof parsed.data === "object") {
+        data = parsed.data;
+      } else if (Array.isArray(parsed)) {
+        data = { txs: parsed }; // legacy: file contained just the txs array
+      }
+      if (!data) { alert(t("Datoteka nije valjan Moja lova backup.")); return; }
+
+      if (!window.confirm(t("Vraćanjem podataka trenutni podaci bit će ZAMIJENJENI. Nastaviti?"))) return;
+
+      try {
+        if (Array.isArray(data.txs))    save(K.db,  data.txs);
+        if (Array.isArray(data.drafts)) save(K.drf, data.drafts);
+        if (data.lists && typeof data.lists === "object") save(K.lst, { ...DEF_LISTS, ...data.lists });
+        if (data.user  && typeof data.user  === "object") save(K.usr, data.user);
+        if (data.prefs && typeof data.prefs === "object") {
+          // Preserve onboarded=true so user doesn't re-enter onboarding after restore.
+          save(K.prf, { ...load(K.prf,{}), ...data.prefs, onboarded: true });
+        }
+        alert(t("Podaci su uspješno vraćeni. Aplikacija će se ponovno učitati."));
+        window.location.reload();
+      } catch {
+        alert(t("Datoteka nije valjan Moja lova backup."));
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const removePIN = async () => { const h=await hashPin(vPin); if(h===sec.pinHash){updSec({pinHash:null,bioEnabled:false,bioCredId:null,attempts:0,totalFailed:0,lockedUntil:null});setRmPin(false);setVPin("");setVErr("");}else setVErr(t("Pogrešan PIN")); };
 
   const toggleBio = async () => {
@@ -2065,7 +2171,7 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
       return;
     }
     if (!window.PublicKeyCredential) {
-      alert("Tvoj uređaj/preglednik ne podržava WebAuthn (Biometriju) ili aplikacija nije na HTTPS protokolu.");
+      alert(t("Tvoj uređaj/preglednik ne podržava WebAuthn (Biometriju) ili aplikacija nije na HTTPS protokolu."));
       return;
     }
     try {
@@ -2074,7 +2180,7 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
       const createOpt = {
         publicKey: {
           rp: { name: "Moja Lova", id: window.location.hostname || "localhost" },
-          user: { id: userId, name: user.email || "Korisnik", displayName: [user.firstName, user.lastName].join(" ") || "Korisnik" },
+          user: { id: userId, name: user.email || t("Korisnik"), displayName: [user.firstName, user.lastName].join(" ") || t("Korisnik") },
           challenge: challenge,
           pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
           authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
@@ -2084,9 +2190,9 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
       const cred = await navigator.credentials.create(createOpt);
       const idBase64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
       updSec({ bioEnabled: true, bioCredId: idBase64 });
-      alert("Biometrija uspješno aktivirana!");
+      alert(t("Biometrija uspješno aktivirana!"));
     } catch (e) {
-      alert("Postavljanje biometrije nije uspjelo.\nProvjeri je li aplikacija na sigurnoj vezi (HTTPS) i koristiš li podržan uređaj.");
+      alert(t("Postavljanje biometrije nije uspjelo.\nProvjeri je li aplikacija na sigurnoj vezi (HTTPS) i koristiš li podržan uređaj."));
     }
   };
 
@@ -2191,20 +2297,44 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
 
         <div style={{ marginTop:14, marginBottom:6 }}>
           <SL text={t("Dijeli i izvezi")} icon="share"/>
+          
+          {/* 1) SHARE — send via WhatsApp/Telegram/E-mail/CSV etc. */}
           <button onClick={()=>setShare(true)} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 15px", background:`linear-gradient(135deg,${C.accent}20,${C.income}15)`, border:`1px solid ${C.accent}40`, borderRadius:13, marginBottom:7, cursor:"pointer" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <Ic n="share" s={19} c={C.accent}/>
-              <div><div style={{ fontSize:14, fontWeight:600, color:C.text }}>{t("Dijeli podatke")}</div><div style={{ fontSize:11, color:C.textMuted }}>{t("E-mail, WhatsApp, Telegram…")}</div></div>
+              <div style={{ textAlign:"left" }}>
+                <div style={{ fontSize:14, fontWeight:600, color:C.text }}>{t("Podijeli podatke")}</div>
+                <div style={{ fontSize:11, color:C.textMuted }}>{t("E-mail, WhatsApp, Telegram…")}</div>
+              </div>
             </div>
             <Ic n="chevron" s={14} c={C.accent} style={{ transform:"rotate(-90deg)" }}/>
           </button>
-          <Row icon="dl"  label={t("Izvezi JSON")}        onClick={expJSON}/>
-          <Row icon="bar" label={t("Izvezi CSV (Excel)")}  onClick={expCSV}/>
-          <label style={{ display:"block", cursor:"pointer" }}>
-            <div style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"12px 14px", background:C.card, border:`1px solid ${C.border}`, borderRadius:13, marginBottom:7, color:C.text }}>
-              <Ic n="ul" s={16} c={C.accent}/><span style={{ fontSize:14, fontWeight:500 }}>{t("Uvezi JSON")}</span>
+
+          {/* 2) EXPORT (BACKUP) — full JSON backup of all data */}
+          <button onClick={fullExport} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 15px", background:`linear-gradient(135deg,${C.warning}20,${C.warning}08)`, border:`1px solid ${C.warning}40`, borderRadius:13, marginBottom:7, cursor:"pointer" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <Ic n="dl" s={19} c={C.warning}/>
+              <div style={{ textAlign:"left" }}>
+                <div style={{ fontSize:14, fontWeight:600, color:C.text }}>{t("Izvezi (Backup)")}</div>
+                <div style={{ fontSize:11, color:C.textMuted }}>{t("Napravi kopiju svih podataka u .json datoteci")}</div>
+              </div>
             </div>
-            <input type="file" accept=".json" onChange={impJSON} style={{ display:"none" }}/>
+            <Ic n="chevron" s={14} c={C.warning} style={{ transform:"rotate(-90deg)" }}/>
+          </button>
+
+          {/* 3) IMPORT (RESTORE) — full JSON restore with confirm */}
+          <label style={{ display:"block", cursor:"pointer", marginBottom:7 }}>
+            <div style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 15px", background:`linear-gradient(135deg,${C.income}18,${C.income}08)`, border:`1px solid ${C.income}40`, borderRadius:13 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <Ic n="ul" s={19} c={C.income}/>
+                <div style={{ textAlign:"left" }}>
+                  <div style={{ fontSize:14, fontWeight:600, color:C.text }}>{t("Učitaj (Import / Restore)")}</div>
+                  <div style={{ fontSize:11, color:C.textMuted }}>{t("Vrati podatke iz prethodne kopije")}</div>
+                </div>
+              </div>
+              <Ic n="chevron" s={14} c={C.income} style={{ transform:"rotate(-90deg)" }}/>
+            </div>
+            <input type="file" accept=".json,application/json" onChange={fullImport} style={{ display:"none" }}/>
           </label>
         </div>
 
