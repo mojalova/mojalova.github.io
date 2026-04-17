@@ -96,7 +96,10 @@ const EN_DICT = {
   "Postavljanje biometrije nije uspjelo.\nProvjeri je li aplikacija na sigurnoj vezi (HTTPS) i koristiš li podržan uređaj.": "Biometrics setup failed.\nMake sure the app is on a secure connection (HTTPS) and your device is supported.",
   "Jezik": "Language", "Hrvatski": "Croatian", "Engleski": "English",
   "Obveza": "Obligation", "Čeka": "Pending", "Obrada": "Processing", "Rata": "Rate",
-  "u tekućoj god.": "in current year", "mj.": "mo.", "obroka preostalo": "installments remaining", "mj. preostalo": "months remaining"
+  "u tekućoj god.": "in current year", "mj.": "mo.", "obroka preostalo": "installments remaining", "mj. preostalo": "months remaining",
+  "Unesite ispravan iznos": "Enter a valid amount", "Unesite opis": "Enter a description",
+  "Odaberite kategoriju": "Select a category", "Odaberite lokaciju": "Select a location",
+  "Odaberite način plaćanja": "Select a payment method", "Odaberite status": "Select a status"
 };
 
 const DEF_LISTS = {
@@ -975,16 +978,39 @@ function TxForm({ C, tx, draft, lists, onSubmit, onCancel, onGoRecurring, t }) {
   const [form, setForm] = useState(init);
   const upd = patch => setForm(f=>({...f,...patch}));
 
+  // Error state for inline validation feedback (replaces silent returns).
+  const [err, setErr] = useState({ msg: "", field: "" });
+  const clearErr = () => setErr({ msg: "", field: "" });
+
   const [showInstSetup, setShowInstSetup] = useState(false);
   const [tempInst, setTempInst] = useState(form.installments || 3);
   const [tempPeriod, setTempPeriod] = useState(form.installmentPeriod || "M");
 
   const inst      = parseInt(form.installments) || 0;
   const isGotov   = form.payment === "Gotovina";
-  const cats      = form.type==="Primitak" ? lists.categories_income : lists.categories_expense;
-  const payments  = inst>1 ? lists.payments.filter(p=>p!=="Gotovina") : lists.payments;
+  const isPrimitak= form.type === "Primitak";
+  const cats      = isPrimitak ? lists.categories_income : lists.categories_expense;
+  // Cards don't apply to incoming money; filter them out for Primitak.
+  const CARD_PAYMENTS = ["Kartica (debitna)", "Kreditna kartica"];
+  const payments  = isPrimitak
+    ? lists.payments.filter(p => !CARD_PAYMENTS.includes(p))
+    : (inst>1 ? lists.payments.filter(p=>p!=="Gotovina") : lists.payments);
 
-  useEffect(()=>{ if (!tx && !draft) upd({ category: "" }); },[form.type]);
+  // On type change (only for new/draft entries): reset category; auto-fill status
+  // for Primitak since income is always received when entered (no "waiting" state).
+  // Also clear payment if it's a card and user switched to Primitak.
+  useEffect(()=>{
+    if (!tx && !draft) {
+      upd({
+        category: "",
+        status: isPrimitak ? "Plaćeno" : "",
+        payment: isPrimitak && CARD_PAYMENTS.includes(form.payment) ? "" : form.payment,
+      });
+    } else if (tx && isPrimitak) {
+      if (!form.status) upd({ status: "Plaćeno" });
+      if (CARD_PAYMENTS.includes(form.payment)) upd({ payment: "" });
+    }
+  },[form.type]);
   useEffect(()=>{ if (isGotov && inst>1) upd({ installments:0 }); },[form.payment]);
   useEffect(()=>{ if (inst>1 && isGotov) upd({ payment: lists.payments.find(p=>p!=="Gotovina") ?? lists.payments[0] }); },[form.installments]);
 
@@ -992,15 +1018,19 @@ function TxForm({ C, tx, draft, lists, onSubmit, onCancel, onGoRecurring, t }) {
   const lbl = { fontSize:11, fontWeight:600, color:C.textMuted, marginBottom:5, display:"flex", alignItems:"center", gap:5, letterSpacing:.3, textTransform:"uppercase" };
 
   const submit = () => {
+    clearErr();
     const amount = parseFloat(form.amount);
-    if (!amount || amount <= 0)        return; 
-    if (!form.description.trim())      return; 
-    if (!form.category)                return; 
-    if (!form.location)                return; 
-    if (!form.payment)                 return; 
-    if (inst <= 1 && !form.status)     return; 
+    if (!amount || amount <= 0)   { setErr({ msg: t("Unesite ispravan iznos"),    field:"amount"      }); return; }
+    if (!form.description.trim()) { setErr({ msg: t("Unesite opis"),              field:"description" }); return; }
+    if (!form.category)           { setErr({ msg: t("Odaberite kategoriju"),      field:"category"    }); return; }
+    if (!form.location)           { setErr({ msg: t("Odaberite lokaciju"),        field:"location"    }); return; }
+    if (!form.payment)            { setErr({ msg: t("Odaberite način plaćanja"),  field:"payment"     }); return; }
+    if (inst <= 1 && !form.status){ setErr({ msg: t("Odaberite status"),          field:"status"      }); return; }
     onSubmit({ ...form, amount, installments: inst });
   };
+
+  // Error-aware field border colour helper.
+  const bd = (name) => err.field === name ? C.expense : C.border;
 
   return (
     <div className="fi" style={{ width:"100%" }}>
@@ -1042,28 +1072,28 @@ function TxForm({ C, tx, draft, lists, onSubmit, onCancel, onGoRecurring, t }) {
             <div>
               <label style={lbl}><Ic n="coins" s={11} c={C.textMuted}/>{t("Iznos (€)")}</label>
               <input type="number" step="0.01" min="0" placeholder="0,00" value={form.amount}
-                onChange={e=>upd({amount:e.target.value})}
-                style={{...fld, fontFamily:"'JetBrains Mono',monospace", fontWeight:600}}/>
+                onChange={e=>{ upd({amount:e.target.value}); clearErr(); }}
+                style={{...fld, fontFamily:"'JetBrains Mono',monospace", fontWeight:600, borderColor:bd("amount")}}/>
             </div>
           </div>
 
           <div>
             <label style={lbl}><Ic n="edit" s={11} c={C.textMuted}/>{t("Opis")}</label>
             <input type="text" placeholder="" value={form.description}
-              onChange={e=>upd({description:e.target.value})} style={fld}/>
+              onChange={e=>{ upd({description:e.target.value}); clearErr(); }} style={{...fld, borderColor:bd("description")}}/>
           </div>
 
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
             <div>
               <label style={lbl}><Ic n="tag" s={11} c={C.textMuted}/>{t("Kategorija")}</label>
-              <select value={form.category} onChange={e=>upd({category:e.target.value})} style={{...fld, color:!form.category?C.textMuted:C.text}}>
+              <select value={form.category} onChange={e=>{ upd({category:e.target.value}); clearErr(); }} style={{...fld, color:!form.category?C.textMuted:C.text, borderColor:bd("category")}}>
                 <option value="" disabled>{t("- odabrati -")}</option>
                 {cats.map(c=><option key={c} value={c}>{t(c)}</option>)}
               </select>
             </div>
             <div>
               <label style={lbl}><Ic n="pin" s={11} c={C.textMuted}/>{t("Lokacija")}</label>
-              <select value={form.location} onChange={e=>upd({location:e.target.value})} style={{...fld, color:!form.location?C.textMuted:C.text}}>
+              <select value={form.location} onChange={e=>{ upd({location:e.target.value}); clearErr(); }} style={{...fld, color:!form.location?C.textMuted:C.text, borderColor:bd("location")}}>
                 <option value="" disabled>{t("- odabrati -")}</option>
                 {lists.locations.map(l=><option key={l} value={l}>{t(l)}</option>)}
               </select>
@@ -1121,18 +1151,18 @@ function TxForm({ C, tx, draft, lists, onSubmit, onCancel, onGoRecurring, t }) {
                 </div>
           )}
 
-          <div style={{ display:"grid", gridTemplateColumns:inst>1?"1fr":"1fr 1fr", gap:10 }}>
+          <div style={{ display:"grid", gridTemplateColumns:(inst>1 || isPrimitak)?"1fr":"1fr 1fr", gap:10 }}>
             <div>
               <label style={lbl}><Ic n="card" s={11} c={C.textMuted}/>{t("Plaćanje")}</label>
-              <select value={form.payment} onChange={e=>upd({payment:e.target.value})} style={{...fld, color:!form.payment?C.textMuted:C.text}}>
+              <select value={form.payment} onChange={e=>{ upd({payment:e.target.value}); clearErr(); }} style={{...fld, color:!form.payment?C.textMuted:C.text, borderColor:bd("payment")}}>
                 <option value="" disabled>{t("- odabrati -")}</option>
                 {payments.map(p=><option key={p} value={p}>{t(p)}</option>)}
               </select>
             </div>
-            {inst <= 1 && (
+            {inst <= 1 && !isPrimitak && (
               <div>
                 <label style={lbl}><Ic n="check" s={11} c={C.textMuted}/>{t("Status")}</label>
-                <select value={form.status} onChange={e=>upd({status:e.target.value})} style={{...fld, color:!form.status?C.textMuted:C.text}}>
+                <select value={form.status} onChange={e=>{ upd({status:e.target.value}); clearErr(); }} style={{...fld, color:!form.status?C.textMuted:C.text, borderColor:bd("status")}}>
                   <option value="" disabled>{t("- odabrati -")}</option>
                   {lists.statuses.map(s=><option key={s} value={s}>{t(s)}</option>)}
                 </select>
@@ -1152,8 +1182,15 @@ function TxForm({ C, tx, draft, lists, onSubmit, onCancel, onGoRecurring, t }) {
           </div>
         </div>
 
+        {err.msg && (
+          <div className="fi" style={{ marginTop:14, padding:"10px 14px", background:`${C.expense}15`, border:`1px solid ${C.expense}50`, borderRadius:12, display:"flex", alignItems:"center", gap:8 }}>
+            <Ic n="alert" s={16} c={C.expense}/>
+            <span style={{ fontSize:13, color:C.expense, fontWeight:600 }}>{err.msg}</span>
+          </div>
+        )}
+
         <button onClick={submit}
-          style={{ width:"100%", padding:15, marginTop:18, marginBottom:16, background:form.type==="Primitak"?`linear-gradient(135deg,${C.income},#059669)`:`linear-gradient(135deg,${C.accent},${C.accentDk})`, border:"none", borderRadius:15, color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+          style={{ width:"100%", padding:15, marginTop:err.msg?10:18, marginBottom:16, background:form.type==="Primitak"?`linear-gradient(135deg,${C.income},#059669)`:`linear-gradient(135deg,${C.accent},${C.accentDk})`, border:"none", borderRadius:15, color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
           <Ic n="check" s={18} c="#fff"/>
           {tx ? t("Spremi promjene") : inst>1 ? `${t("Dodaj")} ${inst} ${t("obroka")}` : draft ? t("Spremi uneseno") : t("Dodaj transakciju")}
         </button>
