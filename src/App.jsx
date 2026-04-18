@@ -276,9 +276,9 @@ const Pill = ({ label, active, color, inactiveColor, onClick }) => (
 );
 
 const StickyHeader = ({ C, icon, title, right }) => (
-  <div style={{
+  <div className="hdr" style={{
     position:"sticky", top:0, zIndex:50,
-    background:C.bg, paddingTop:44, paddingBottom:10,
+    background:C.bg, paddingBottom:10,
     paddingLeft:16, paddingRight:16,
     borderBottom:`1px solid ${C.border}`,
   }}>
@@ -820,6 +820,7 @@ export default function App() {
     select.empty{color:${C.textMuted};}
     select:not(.empty){color:${C.text};}
     button{font-family:inherit;}
+    .hdr{padding-top:max(14px, env(safe-area-inset-top));}
   `;
 
   const wrap = { background:C.bg, minHeight:"100vh", width:"100%", color:C.text, fontFamily:"'Inter',sans-serif", maxWidth:480, margin:"0 auto", transition:"background .3s,color .3s" };
@@ -950,7 +951,7 @@ function Dashboard({ C, data, year, user, lists, setPage, onQuickAdd, t, lang })
 
   return (
     <div className="fi" style={{ width:"100%" }}>
-      <div style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingTop:30, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
+      <div className="hdr" style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
             <h1 style={{ fontSize:20, fontWeight:700, display:"flex", alignItems:"center", gap:8, color:C.accent }}>
@@ -1669,7 +1670,7 @@ function ListEditor({ C, title, items, onBack, t }) {
 
   return (
     <div className="fi" style={{ width:"100%" }}>
-      <div style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingTop:50, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
+      <div className="hdr" style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <button onClick={()=>onBack(arr)} title={t("Natrag")} style={{ background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:10, padding:"8px 10px", cursor:"pointer", display:"flex", alignItems:"center" }}><Ic n="arrow_l" s={18} c={C.accent}/></button>
           <h2 style={{ fontSize:17, fontWeight:700, color:C.text }}>{t(title)}</h2>
@@ -1855,7 +1856,7 @@ function RecurringScreen({ C, lists, data, setTxs, onBack, t, lang }) {
 
   return (
     <div className="fi" style={{ width:"100%" }}>
-      <div style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingTop:50, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
+      <div className="hdr" style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <h2 style={{ fontSize:18, fontWeight:700, display:"flex", alignItems:"center", gap:8, color:C.text }}>
             <Ic n="repeat" s={18} c={C.accent}/>{t("Obveze")} · {cmName} {cmYr}.
@@ -1978,7 +1979,7 @@ function RecurringEditor({ C, items, lists, onBack, t }) {
 
   return (
     <div className="fi" style={{ width:"100%" }}>
-      <div style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingTop:50, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
+      <div className="hdr" style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <button title={t("Natrag")} onClick={()=>onBack(arr)} style={{ background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:10, padding:"8px 10px", cursor:"pointer", display:"flex", alignItems:"center" }}><Ic n="arrow_l" s={18} c={C.accent}/></button>
           <h2 style={{ fontSize:17, fontWeight:700, color:C.text }}>{t("Redovne obveze")}</h2>
