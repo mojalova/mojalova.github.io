@@ -38,7 +38,9 @@ const EN_DICT = {
   "Plaćeno": "Paid", "Čeka plaćanje": "Pending", "U obradi": "Processing",
   "Period prikaza": "Time Period", "Sve ukupno": "All Time", "Stavki": "Items", "Očekivano": "Expected", "Kategorije": "Categories",
   "Pregled/Saldo": "Overview/Balance", "Plaćanje/Lokacije": "Payment/Location", "Ukupno očekivano": "Total Expected",
-  "Obroci": "Pay Plan", "Rate": "Loan Inst.", "Ostalo": "Other", "Nema očekivanih obveza": "No expected obligations", "Nema podataka": "No data",
+  "Obroci": "Pay Plan", "Rate": "Loan Inst.", "Nema očekivanih obveza": "No expected obligations", "Nema podataka": "No data",
+  // Dedicated short labels used only in Stats → Ukupno očekivano filter pills.
+  "Obveze (short)": "Recurr.", "Obroci (short)": "Pay. Plan", "Rate (short)": "Loan Inst.", "Ostalo (short)": "Other",
   "Kumulativni saldo": "Cumulative Balance", "Po načinu plaćanja": "By Payment Method", "Po lokacijama": "By Location", "do": "until",
   "Natrag": "Back", "Plaćeno ovaj mjesec": "Paid this month", "Nema obveza za ovaj mjesec": "No obligations this month",
   "Ovdje će se pojaviti redovne obveze i obroci čiji datum pada u tekući mjesec.": "Recurring obligations and installments for the current month will appear here.",
@@ -87,6 +89,11 @@ const EN_DICT = {
   "Vrati podatke iz prethodne kopije": "Restore data from a previous backup",
   "Backup uspješno spremljen.": "Backup saved successfully.",
   "Kopiraj tekst ispod i spremi ga u datoteku ili zalijepi u e-mail / Drive / Keep.": "Copy the text below and save it to a file, or paste it into e-mail / Drive / Keep.",
+  "Spremi backup koristeći jednu od opcija ispod. Ako jedna ne radi, druga hoće.": "Save the backup using one of the options below. If one doesn't work, another will.",
+  "Podijeli": "Share",
+  "Dijeljenje nije podržano na ovom uređaju. Koristi Kopiraj ili Preuzmi.": "Sharing is not supported on this device. Use Copy or Download.",
+  "Dijeljenje nije uspjelo. Koristi Kopiraj ili Preuzmi.": "Sharing failed. Use Copy or Download.",
+  "Preuzimanje nije uspjelo. Koristi Kopiraj ili Podijeli.": "Download failed. Use Copy or Share.",
   "Podaci su uspješno vraćeni. Aplikacija će se ponovno učitati.": "Data restored successfully. The app will reload.",
   "Datoteka nije valjan Moja lova backup.": "The file is not a valid Moja lova backup.",
   "Greška pri čitanju datoteke.": "Error reading the file.",
@@ -155,6 +162,55 @@ const hashPin = async p => {
 const K = { db:"ml_data", prf:"ml_prefs", lst:"ml_lists", usr:"ml_user", sec:"ml_sec", drf:"ml_drafts" };
 const load = (k,fb) => { try { const v=localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } };
 const save = (k,v)  => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+// ─── Capacitor native bridge (only when running inside the APK) ──────────────
+// The web build stays plain: if @capacitor/* packages aren't installed, these
+// imports silently fail and we fall back to Web Share/download paths.
+const isCapacitor = () =>
+  typeof window !== "undefined"
+  && window.Capacitor
+  && typeof window.Capacitor.isNativePlatform === "function"
+  && window.Capacitor.isNativePlatform();
+
+// Native save — writes the backup JSON to the device's Documents folder using
+// @capacitor/filesystem, then offers a share sheet so the user can move it
+// (Drive, email…) via @capacitor/share. Returns true on success.
+const nativeSaveAndShare = async (filename, content) => {
+  if (!isCapacitor()) return false;
+  try {
+    const fs = await import("@capacitor/filesystem");
+    const sh = await import("@capacitor/share");
+    const { Filesystem, Directory, Encoding } = fs;
+    const { Share } = sh;
+
+    // Write to the Documents directory so the file is visible via the phone's
+    // Files app and survives app uninstall.
+    const writeRes = await Filesystem.writeFile({
+      path: filename,
+      data: content,
+      directory: Directory.Documents,
+      encoding: Encoding.UTF8,
+      recursive: true,
+    });
+
+    // Immediately open the native share sheet so the user can also send the
+    // file elsewhere (email, Drive, etc). Failure here is non-fatal — the
+    // file is already saved to Documents.
+    try {
+      await Share.share({
+        title: "Moja lova — Backup",
+        text: filename,
+        url: writeRes && writeRes.uri,
+        dialogTitle: filename,
+      });
+    } catch { /* user cancelled share; file is still saved */ }
+
+    return true;
+  } catch (e) {
+    console.warn("nativeSaveAndShare failed:", e);
+    return false;
+  }
+};
 
 // ─── Icon system ─────────────────────────────────────────────────────────────
 const Ic = ({ n, s=20, c="#fff", style={} }) => {
@@ -651,6 +707,7 @@ export default function App() {
   const [draftEdit,setDraftEdit] = useState(null);
   const [subPg, setSubPg]    = useState(null);
   const [unlocked,setUnlocked] = useState(false);
+  const [setupMode, setSetupMode] = useState(false); // shows SetupPin screen from Settings when user has no PIN yet
 
   // Modal controls
   const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -664,8 +721,19 @@ export default function App() {
 
   const lang = prefs.lang || "hr";
   
+  // HR fallback map — when a translation key doesn't read well as-is in Croatian
+  // (e.g. "Obveze (short)"), this maps to a clean Croatian display text.
+  // Keys present here apply only to Croatian; English uses EN_DICT as before.
+  const HR_OVERRIDE = {
+    "Obveze (short)": "Obveze",
+    "Obroci (short)": "Obroci",
+    "Rate (short)": "Rate",
+    "Ostalo (short)": "Ostalo",
+  };
+
   const t = useCallback((key) => {
     if (lang === "en" && EN_DICT[key]) return EN_DICT[key];
+    if (lang === "hr" && HR_OVERRIDE[key]) return HR_OVERRIDE[key];
     return key;
   }, [lang]);
 
@@ -772,6 +840,18 @@ export default function App() {
     </div>
   );
 
+  // Setup-PIN screen invoked from Settings when user has no PIN yet.
+  if (setupMode) {
+    return (
+      <div style={wrap}><style>{gs}</style>
+        <SetupPin C={C} isChange={false} t={t}
+          onSave={hash => { setSec(v=>({...v, pinHash:hash, attempts:0, totalFailed:0, lockedUntil:null})); setSetupMode(false); }}
+          onSkip={() => setSetupMode(false)}
+        />
+      </div>
+    );
+  }
+
   const shared = { C, year:prefs.year, lists, user, t, lang };
 
   return (
@@ -784,7 +864,7 @@ export default function App() {
       {page==="transactions" && <TxList {...shared} data={txs} filter={txFilter} setFilter={setTxFilter} onEdit={id=>{ setEditId(id); setPage("edit"); }} onDelete={delTx} onDeleteGroup={delGrp} onPay={id=>setTxs(p=>p.map(x=>x.id===id?{...x,status:"Plaćeno",date:new Date().toISOString().split("T")[0]}:x))}/>}
       {page==="charts"       && <Charts {...shared} data={txs} tab={statTab} setTab={setStatTab} selMonth={statMonth} setSelMonth={setStatMonth} expFilter={statExpFilter} setExpFilter={setStatExpFilter}/>}
       {page==="recurring"    && <RecurringScreen {...shared} data={txs} setTxs={setTxs} onBack={()=>setPage("dashboard")}/>}
-      {page==="settings"     && <Settings {...shared} txs={txs} setTxs={setTxs} prefs={prefs} updPrefs={updP} updUser={updU} sec={sec} updSec={updS} lists={lists} setLists={setLists} subPg={subPg} setSubPg={setSubPg} setUnlocked={setUnlocked}/>}
+      {page==="settings"     && <Settings {...shared} txs={txs} setTxs={setTxs} prefs={prefs} updPrefs={updP} updUser={updU} sec={sec} updSec={updS} lists={lists} setLists={setLists} subPg={subPg} setSubPg={setSubPg} setUnlocked={setUnlocked} setSetupMode={setSetupMode}/>}
 
       {showQuickAdd && <QuickAddModal C={C} t={t} onClose={()=>setShowQuickAdd(false)} onSave={d => { setDrafts(p=>[{id:Date.now().toString(), amount:d.amount, description:d.desc, date:new Date().toISOString()}, ...p]); setShowQuickAdd(false); }}/>}
       {showActionHub && <ActionHubModal C={C} t={t} drafts={drafts} onClose={()=>setShowActionHub(false)} onNew={()=>{ setPage("add"); setDraftEdit(null); setShowActionHub(false); }} onSelect={d=>{ setDraftEdit(d); setPage("add"); setShowActionHub(false); }} onDel={id=>setDrafts(p=>p.filter(d=>d.id!==id))}/>}
@@ -1500,10 +1580,10 @@ function Charts({ C, data, year, lists, tab, setTab, selMonth, setSelMonth, expF
             </div>
             <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
               {[
-                {k:"recurring",lb:t("Obveze"),col:C.accent},
-                {k:"rate",lb:t("Obroci"),col:C.warning},
-                {k:"kredit",lb:t("Rate"),col:"#A78BFA"},
-                {k:"processing",lb:t("Ostalo"),col:"#FB923C"} 
+                {k:"recurring", lb:t("Obveze (short)"), col:C.accent},
+                {k:"rate",      lb:t("Obroci (short)"), col:C.warning},
+                {k:"kredit",    lb:t("Rate (short)"),   col:"#A78BFA"},
+                {k:"processing",lb:t("Ostalo (short)"), col:"#FB923C"},
               ].map(({k,lb,col})=>(
                 <button key={k} onClick={()=>setExpFilter(f=>({...f,[k]:!f[k]}))}
                   style={{ padding:"5px 12px", borderRadius:18, border:`1.5px solid ${expFilter[k]?col:C.border}`, background:expFilter[k]?`${col}18`:"transparent", color:expFilter[k]?col:C.textMuted, fontSize:11, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
@@ -2136,9 +2216,11 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
   );
 
   // Complete backup — serializes all app data except PIN hash (safety).
-  const fullExport = async () => {
-    let jsonStr = "";
-    let filename = "";
+  // Instead of trying to silently pick the "right" save path (which fails
+  // unpredictably in WebView/APK environments), we ALWAYS show the backup
+  // content in a modal with three clear action buttons: Copy, Share, Download.
+  // Whatever fails, the user always has a working option.
+  const fullExport = () => {
     try {
       const payload = {
         __moja_lova_backup: true,
@@ -2153,70 +2235,12 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
           prefs:  load(K.prf, {}),
         }
       };
-      jsonStr  = JSON.stringify(payload, null, 2);
-      filename = `moja_lova_backup_${new Date().toISOString().split("T")[0]}.json`;
+      const jsonStr  = JSON.stringify(payload, null, 2);
+      const filename = `moja_lova_backup_${new Date().toISOString().split("T")[0]}.json`;
+      setExportFallback({ filename, content: jsonStr });
     } catch {
       alert(t("Greška pri čitanju datoteke."));
-      return;
     }
-
-    // --- Tier 1: Web Share API with file attachment -------------------------
-    // Opens the native Android/iOS share sheet; user can pick "Save to Files",
-    // "Drive", "Keep", email, etc. and choose a location.
-    try {
-      if (typeof File !== "undefined" &&
-          typeof navigator !== "undefined" &&
-          typeof navigator.canShare === "function") {
-        const file = new File([jsonStr], filename, { type: "application/json" });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: "Moja lova — Backup", text: filename });
-          return;
-        }
-      }
-    } catch (shareErr) {
-      if (shareErr && shareErr.name === "AbortError") return; // user cancelled
-      // otherwise fall through
-    }
-
-    // --- Tier 2: Web Share API with text (no file) --------------------------
-    // Some Android WebViews (and some APK wrappers) don't support file sharing
-    // but do support plain-text sharing. This lets the user paste the JSON
-    // into any messaging/notes app.
-    try {
-      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-        await navigator.share({ title: filename, text: jsonStr });
-        return;
-      }
-    } catch (shareErr) {
-      if (shareErr && shareErr.name === "AbortError") return;
-    }
-
-    // --- Tier 3: classic <a download> ---------------------------------------
-    // Works on desktop browsers and some modern mobile browsers.
-    try {
-      const blob = new Blob([jsonStr], { type: "application/json" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      // Heuristic: if we're in a web environment where downloads work, this alert confirms success.
-      // In WebView wrappers where downloads silently fail, the user will see nothing happen — we
-      // then offer the manual copy fallback next time (users who didn't see a file will try again).
-      alert(t("Backup uspješno spremljen."));
-      return;
-    } catch {
-      // fall through to manual-copy modal
-    }
-
-    // --- Tier 4: in-app fallback modal with Copy button ---------------------
-    // Guaranteed to work. Shows the JSON text so the user can copy and paste
-    // it anywhere (e-mail, Drive, Keep, WhatsApp to themselves…).
-    setExportFallback({ filename, content: jsonStr });
   };
 
   // Restore — validates payload, confirms, writes to localStorage, reloads.
@@ -2471,8 +2495,10 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
         
         {share && <ShareModal C={C} txs={txs} year={year} user={user} onClose={()=>setShare(false)} t={t} lang={lang} />}
 
-        {/* Export fallback: shown only when all download/share paths fail.
-            User can copy the JSON manually and paste it anywhere. */}
+        {/* Export modal — always shown when the user clicks Export (Backup).
+            Provides three reliable save paths so at least one works on any
+            device: Copy (works everywhere), Share (native share sheet),
+            Download (browser download). */}
         {exportFallback && (
           <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.7)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }} onClick={e=>{ if(e.target===e.currentTarget) setExportFallback(null); }}>
             <div className="su" style={{ background:C.card, borderRadius:18, width:"100%", maxWidth:420, padding:20, border:`1px solid ${C.border}`, maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
@@ -2485,7 +2511,7 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
                 </button>
               </div>
               <p style={{ fontSize:12, color:C.textMuted, marginBottom:10, lineHeight:1.5 }}>
-                {t("Kopiraj tekst ispod i spremi ga u datoteku ili zalijepi u e-mail / Drive / Keep.")}
+                {t("Spremi backup koristeći jednu od opcija ispod. Ako jedna ne radi, druga hoće.")}
               </p>
               <div style={{ fontSize:11, color:C.textSub, marginBottom:8, fontFamily:"'JetBrains Mono',monospace" }}>
                 {exportFallback.filename}
@@ -2494,27 +2520,88 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
                 readOnly
                 value={exportFallback.content}
                 onFocus={e=>e.target.select()}
-                style={{ width:"100%", flex:1, minHeight:180, padding:10, background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:10, color:C.text, fontSize:11, fontFamily:"'JetBrains Mono',monospace", resize:"none", marginBottom:12 }}
+                style={{ width:"100%", flex:1, minHeight:140, padding:10, background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:10, color:C.text, fontSize:11, fontFamily:"'JetBrains Mono',monospace", resize:"none", marginBottom:12 }}
               />
-              <button onClick={async ()=>{
-                try {
-                  if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(exportFallback.content);
-                  } else {
-                    const ta = document.createElement("textarea");
-                    ta.value = exportFallback.content;
-                    document.body.appendChild(ta);
-                    ta.select();
-                    document.execCommand("copy");
-                    document.body.removeChild(ta);
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+                {/* Copy — works in every environment */}
+                <button onClick={async ()=>{
+                  try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                      await navigator.clipboard.writeText(exportFallback.content);
+                    } else {
+                      const ta = document.createElement("textarea");
+                      ta.value = exportFallback.content;
+                      document.body.appendChild(ta);
+                      ta.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(ta);
+                    }
+                    alert(t("Kopirano!"));
+                  } catch {
+                    alert(t("Greška pri čitanju datoteke."));
                   }
-                  alert(t("Kopirano!"));
-                } catch {
-                  alert(t("Greška pri čitanju datoteke."));
-                }
-              }} style={{ width:"100%", padding:13, background:`linear-gradient(135deg,${C.warning},#F59E0B)`, border:"none", borderRadius:12, color:"#000", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                <Ic n="copy" s={16} c="#000"/>{t("Kopiraj")}
-              </button>
+                }} style={{ padding:12, background:`linear-gradient(135deg,${C.warning},#F59E0B)`, border:"none", borderRadius:12, color:"#000", fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                  <Ic n="copy" s={14} c="#000"/>{t("Kopiraj")}
+                </button>
+
+                {/* Share — tries Web Share API (file first, then text) */}
+                <button onClick={async ()=>{
+                  const { filename, content } = exportFallback;
+                  try {
+                    if (typeof File !== "undefined" && typeof navigator !== "undefined" && typeof navigator.canShare === "function") {
+                      const file = new File([content], filename, { type: "application/json" });
+                      if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file], title: "Moja lova — Backup", text: filename });
+                        return;
+                      }
+                    }
+                    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+                      await navigator.share({ title: filename, text: content });
+                      return;
+                    }
+                    alert(t("Dijeljenje nije podržano na ovom uređaju. Koristi Kopiraj ili Preuzmi."));
+                  } catch (shareErr) {
+                    if (shareErr && shareErr.name === "AbortError") return;
+                    alert(t("Dijeljenje nije uspjelo. Koristi Kopiraj ili Preuzmi."));
+                  }
+                }} style={{ padding:12, background:`linear-gradient(135deg,${C.accent},${C.accentDk})`, border:"none", borderRadius:12, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                  <Ic n="share" s={14} c="#fff"/>{t("Podijeli")}
+                </button>
+
+                {/* Download — prefers native Capacitor save on APK (guaranteed
+                    to write a real file into Documents); falls back to the
+                    classic browser download on web. */}
+                <button onClick={async ()=>{
+                  const { filename, content } = exportFallback;
+                  // 1) Try native (Capacitor Filesystem + Share).
+                  if (isCapacitor()) {
+                    const ok = await nativeSaveAndShare(filename, content);
+                    if (ok) {
+                      alert(t("Backup uspješno spremljen."));
+                      return;
+                    }
+                    // If native failed (plugins missing or permission denied),
+                    // fall through to web download below.
+                  }
+                  // 2) Web fallback — standard anchor download.
+                  try {
+                    const blob = new Blob([content], { type: "application/json" });
+                    const url  = URL.createObjectURL(blob);
+                    const a    = document.createElement("a");
+                    a.href = url;
+                    a.download = filename;
+                    a.rel = "noopener";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  } catch {
+                    alert(t("Preuzimanje nije uspjelo. Koristi Kopiraj ili Podijeli."));
+                  }
+                }} style={{ padding:12, background:`linear-gradient(135deg,${C.income},#059669)`, border:"none", borderRadius:12, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                  <Ic n="dl" s={14} c="#fff"/>{t("Preuzmi")}
+                </button>
+              </div>
             </div>
           </div>
         )}
