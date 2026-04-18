@@ -38,7 +38,7 @@ const EN_DICT = {
   "Plaćeno": "Paid", "Čeka plaćanje": "Pending", "U obradi": "Processing",
   "Period prikaza": "Time Period", "Sve ukupno": "All Time", "Stavki": "Items", "Očekivano": "Expected", "Kategorije": "Categories",
   "Pregled/Saldo": "Overview/Balance", "Plaćanje/Lokacije": "Payment/Location", "Ukupno očekivano": "Total Expected",
-  "Obroci": "Installments", "Rate": "Rates", "Ostalo": "Other", "Nema očekivanih obveza": "No expected obligations", "Nema podataka": "No data",
+  "Obroci": "Payment Plan", "Rate": "Loan Inst.", "Ostalo": "Other", "Nema očekivanih obveza": "No expected obligations", "Nema podataka": "No data",
   "Kumulativni saldo": "Cumulative Balance", "Po načinu plaćanja": "By Payment Method", "Po lokacijama": "By Location", "do": "until",
   "Natrag": "Back", "Plaćeno ovaj mjesec": "Paid this month", "Nema obveza za ovaj mjesec": "No obligations this month",
   "Ovdje će se pojaviti redovne obveze i obroci čiji datum pada u tekući mjesec.": "Recurring obligations and installments for the current month will appear here.",
@@ -54,7 +54,7 @@ const EN_DICT = {
   "Promijeni PIN": "Change PIN", "Zaštita aktivna": "Protection active", "pokušaja": "attempts", "Biometrija": "Biometrics",
   "Aktivno": "Active", "Omogući fingerprint/Face ID": "Enable fingerprint/Face ID", "Ukloni PIN zaštitu": "Remove PIN Protection",
   "Unesite trenutni PIN:": "Enter current PIN:", "Ukloni": "Remove", "Pogrešan PIN": "Wrong PIN", "Dijeli i izvezi": "Share & Export",
-  "Dijeli podatke": "Share Data", "Izvezi JSON": "Export JSON", "Izvezi CSV (Excel)": "Export CSV", "Uvezi JSON": "Import JSON",
+  "Dijeli podatke": "Share Data", "Podijeli podatke": "Share Data", "Izvezi JSON": "Export JSON", "Izvezi CSV (Excel)": "Export CSV", "Uvezi JSON": "Import JSON",
   "Opasna zona": "Danger Zone", "Obriši sve podatke": "Delete All Data", "Ovo se ne može poništiti!": "This cannot be undone!",
   "Da, obriši": "Yes, Delete", "Autor:": "Author:", "Jezik aplikacije": "App Language", "E-mail, WhatsApp, Telegram…": "E-mail, WhatsApp, Telegram…",
   "Verzija": "Version", "Osobna upotreba · Nije za komercijalnu distribuciju.": "Personal use · Not for commercial distribution.",
@@ -868,7 +868,7 @@ function Dashboard({ C, data, year, user, lists, setPage, onQuickAdd, t, lang })
 
   return (
     <div className="fi" style={{ width:"100%" }}>
-      <div style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingTop:28, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
+      <div style={{ position:"sticky", top:0, zIndex:50, background:C.bg, paddingTop:30, paddingBottom:10, paddingLeft:16, paddingRight:16, borderBottom:`1px solid ${C.border}` }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
             <h1 style={{ fontSize:20, fontWeight:700, display:"flex", alignItems:"center", gap:8, color:C.accent }}>
@@ -2131,7 +2131,7 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
   );
 
   // Complete backup — serializes all app data except PIN hash (safety).
-  const fullExport = () => {
+  const fullExport = async () => {
     try {
       const payload = {
         __moja_lova_backup: true,
@@ -2146,13 +2146,46 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
           prefs:  load(K.prf, {}),
         }
       };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
+      const jsonStr  = JSON.stringify(payload, null, 2);
+      const filename = `moja_lova_backup_${new Date().toISOString().split("T")[0]}.json`;
+      const blob = new Blob([jsonStr], { type: "application/json" });
+
+      // Mobile / APK path — Web Share API (level 2) opens the native share sheet,
+      // which on Android/iOS includes "Save to Files/Drive" as options so the user
+      // can pick a name and location. Falls through to <a download> on desktop or
+      // when sharing files is not supported.
+      const file = (typeof File !== "undefined")
+        ? new File([blob], filename, { type: "application/json" })
+        : null;
+      const canShareFile = file
+        && typeof navigator !== "undefined"
+        && typeof navigator.canShare === "function"
+        && navigator.canShare({ files: [file] });
+
+      if (canShareFile) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: "Moja lova — Backup",
+            text: filename,
+          });
+          return; // user completed or cancelled the native sheet
+        } catch (shareErr) {
+          // User cancelled — don't fall back, don't alert.
+          if (shareErr && shareErr.name === "AbortError") return;
+          // Real failure: fall through to download fallback below.
+        }
+      }
+
+      // Desktop / fallback: trigger a standard download.
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement("a");
       a.href = url;
-      a.download = `moja_lova_backup_${new Date().toISOString().split("T")[0]}.json`;
+      a.download = filename;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
       alert(t("Backup uspješno spremljen."));
     } catch {
       alert(t("Greška pri čitanju datoteke."));
@@ -2164,6 +2197,12 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
     const file = e.target.files && e.target.files[0];
     e.target.value = ""; // allow re-selecting the same file
     if (!file) return;
+
+    // Quick pre-check by name/type — avoid wasting time on images, PDFs, etc.
+    // that the user may accidentally pick (Android's file picker shows everything).
+    const looksJson = /\.json$/i.test(file.name) || file.type === "application/json" || file.type === "";
+    if (!looksJson) { alert(t("Datoteka nije valjan Moja lova backup.")); return; }
+
     const reader = new FileReader();
     reader.onerror = () => alert(t("Greška pri čitanju datoteke."));
     reader.onload = (ev) => {
@@ -2371,7 +2410,9 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
               </div>
               <Ic n="chevron" s={14} c={C.income} style={{ transform:"rotate(-90deg)" }}/>
             </div>
-            <input type="file" accept=".json,application/json" onChange={fullImport} style={{ display:"none" }}/>
+            {/* Android opens the Files/Documents picker when accept is a
+                wildcard; JSON validity is verified inside fullImport. */}
+            <input type="file" accept="*/*" onChange={fullImport} style={{ display:"none" }}/>
           </label>
         </div>
 
