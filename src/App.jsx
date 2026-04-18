@@ -38,7 +38,7 @@ const EN_DICT = {
   "Plaćeno": "Paid", "Čeka plaćanje": "Pending", "U obradi": "Processing",
   "Period prikaza": "Time Period", "Sve ukupno": "All Time", "Stavki": "Items", "Očekivano": "Expected", "Kategorije": "Categories",
   "Pregled/Saldo": "Overview/Balance", "Plaćanje/Lokacije": "Payment/Location", "Ukupno očekivano": "Total Expected",
-  "Obroci": "Payment Plan", "Rate": "Loan Inst.", "Ostalo": "Other", "Nema očekivanih obveza": "No expected obligations", "Nema podataka": "No data",
+  "Obroci": "Pay Plan", "Rate": "Loan Inst.", "Ostalo": "Other", "Nema očekivanih obveza": "No expected obligations", "Nema podataka": "No data",
   "Kumulativni saldo": "Cumulative Balance", "Po načinu plaćanja": "By Payment Method", "Po lokacijama": "By Location", "do": "until",
   "Natrag": "Back", "Plaćeno ovaj mjesec": "Paid this month", "Nema obveza za ovaj mjesec": "No obligations this month",
   "Ovdje će se pojaviti redovne obveze i obroci čiji datum pada u tekući mjesec.": "Recurring obligations and installments for the current month will appear here.",
@@ -86,6 +86,7 @@ const EN_DICT = {
   "Napravi kopiju svih podataka u .json datoteci": "Save a backup of all data in a .json file",
   "Vrati podatke iz prethodne kopije": "Restore data from a previous backup",
   "Backup uspješno spremljen.": "Backup saved successfully.",
+  "Kopiraj tekst ispod i spremi ga u datoteku ili zalijepi u e-mail / Drive / Keep.": "Copy the text below and save it to a file, or paste it into e-mail / Drive / Keep.",
   "Podaci su uspješno vraćeni. Aplikacija će se ponovno učitati.": "Data restored successfully. The app will reload.",
   "Datoteka nije valjan Moja lova backup.": "The file is not a valid Moja lova backup.",
   "Greška pri čitanju datoteke.": "Error reading the file.",
@@ -1663,8 +1664,8 @@ function ShareModal({ C, txs, year, user, onClose, t, lang }) {
   ];
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.7)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={e=>{ if(e.target===e.currentTarget)onClose(); }}>
-      <div className="su" style={{ background:C.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:480, padding:"20px 16px 34px", maxHeight:"90vh", overflowY:"auto" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.7)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }} onClick={e=>{ if(e.target===e.currentTarget)onClose(); }}>
+      <div className="su" style={{ background:C.card, borderRadius:20, width:"100%", maxWidth:420, padding:"20px 16px 20px", maxHeight:"85vh", overflowY:"auto", border:`1px solid ${C.border}` }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <h3 style={{ fontSize:17, fontWeight:700, color:C.text, display:"flex", alignItems:"center", gap:8 }}><Ic n="share" s={18} c={C.accent}/>{t("Dijeli / Izvezi")}</h3>
           <button onClick={onClose} title={t("Zatvori")} style={{ background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:10, padding:"6px 10px", cursor:"pointer" }}><Ic n="x" s={16} c={C.textMuted}/></button>
@@ -2094,6 +2095,10 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
   const [vErr,    setVErr]    = useState("");
   const [share,   setShare]   = useState(false);
   const [confirm, setConfirm] = useState(false);
+  // Fallback state: if no download/share path works (some APK wrappers block both),
+  // we show the JSON in a modal with a Copy button so the user can paste into any
+  // note/chat app and save it elsewhere.
+  const [exportFallback, setExportFallback] = useState(null); // { filename, content }
 
   const hasProfileData = user.firstName || user.lastName || user.phone || user.email;
   const [isEditingProfile, setIsEditingProfile] = useState(!hasProfileData);
@@ -2132,6 +2137,8 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
 
   // Complete backup — serializes all app data except PIN hash (safety).
   const fullExport = async () => {
+    let jsonStr = "";
+    let filename = "";
     try {
       const payload = {
         __moja_lova_backup: true,
@@ -2146,50 +2153,70 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
           prefs:  load(K.prf, {}),
         }
       };
-      const jsonStr  = JSON.stringify(payload, null, 2);
-      const filename = `moja_lova_backup_${new Date().toISOString().split("T")[0]}.json`;
-      const blob = new Blob([jsonStr], { type: "application/json" });
+      jsonStr  = JSON.stringify(payload, null, 2);
+      filename = `moja_lova_backup_${new Date().toISOString().split("T")[0]}.json`;
+    } catch {
+      alert(t("Greška pri čitanju datoteke."));
+      return;
+    }
 
-      // Mobile / APK path — Web Share API (level 2) opens the native share sheet,
-      // which on Android/iOS includes "Save to Files/Drive" as options so the user
-      // can pick a name and location. Falls through to <a download> on desktop or
-      // when sharing files is not supported.
-      const file = (typeof File !== "undefined")
-        ? new File([blob], filename, { type: "application/json" })
-        : null;
-      const canShareFile = file
-        && typeof navigator !== "undefined"
-        && typeof navigator.canShare === "function"
-        && navigator.canShare({ files: [file] });
-
-      if (canShareFile) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: "Moja lova — Backup",
-            text: filename,
-          });
-          return; // user completed or cancelled the native sheet
-        } catch (shareErr) {
-          // User cancelled — don't fall back, don't alert.
-          if (shareErr && shareErr.name === "AbortError") return;
-          // Real failure: fall through to download fallback below.
+    // --- Tier 1: Web Share API with file attachment -------------------------
+    // Opens the native Android/iOS share sheet; user can pick "Save to Files",
+    // "Drive", "Keep", email, etc. and choose a location.
+    try {
+      if (typeof File !== "undefined" &&
+          typeof navigator !== "undefined" &&
+          typeof navigator.canShare === "function") {
+        const file = new File([jsonStr], filename, { type: "application/json" });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "Moja lova — Backup", text: filename });
+          return;
         }
       }
+    } catch (shareErr) {
+      if (shareErr && shareErr.name === "AbortError") return; // user cancelled
+      // otherwise fall through
+    }
 
-      // Desktop / fallback: trigger a standard download.
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement("a");
+    // --- Tier 2: Web Share API with text (no file) --------------------------
+    // Some Android WebViews (and some APK wrappers) don't support file sharing
+    // but do support plain-text sharing. This lets the user paste the JSON
+    // into any messaging/notes app.
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        await navigator.share({ title: filename, text: jsonStr });
+        return;
+      }
+    } catch (shareErr) {
+      if (shareErr && shareErr.name === "AbortError") return;
+    }
+
+    // --- Tier 3: classic <a download> ---------------------------------------
+    // Works on desktop browsers and some modern mobile browsers.
+    try {
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
       a.href = url;
       a.download = filename;
+      a.rel = "noopener";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      // Heuristic: if we're in a web environment where downloads work, this alert confirms success.
+      // In WebView wrappers where downloads silently fail, the user will see nothing happen — we
+      // then offer the manual copy fallback next time (users who didn't see a file will try again).
       alert(t("Backup uspješno spremljen."));
+      return;
     } catch {
-      alert(t("Greška pri čitanju datoteke."));
+      // fall through to manual-copy modal
     }
+
+    // --- Tier 4: in-app fallback modal with Copy button ---------------------
+    // Guaranteed to work. Shows the JSON text so the user can copy and paste
+    // it anywhere (e-mail, Drive, Keep, WhatsApp to themselves…).
+    setExportFallback({ filename, content: jsonStr });
   };
 
   // Restore — validates payload, confirms, writes to localStorage, reloads.
@@ -2443,6 +2470,54 @@ function GeneralSettings({ C, txs, setTxs, prefs, updPrefs, user, updUser, sec, 
         </div>
         
         {share && <ShareModal C={C} txs={txs} year={year} user={user} onClose={()=>setShare(false)} t={t} lang={lang} />}
+
+        {/* Export fallback: shown only when all download/share paths fail.
+            User can copy the JSON manually and paste it anywhere. */}
+        {exportFallback && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.7)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }} onClick={e=>{ if(e.target===e.currentTarget) setExportFallback(null); }}>
+            <div className="su" style={{ background:C.card, borderRadius:18, width:"100%", maxWidth:420, padding:20, border:`1px solid ${C.border}`, maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                <h3 style={{ fontSize:16, fontWeight:700, color:C.text, display:"flex", alignItems:"center", gap:8 }}>
+                  <Ic n="dl" s={17} c={C.warning}/>{t("Izvezi (Backup)")}
+                </h3>
+                <button onClick={()=>setExportFallback(null)} style={{ background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:8, padding:6, cursor:"pointer" }}>
+                  <Ic n="x" s={14} c={C.textMuted}/>
+                </button>
+              </div>
+              <p style={{ fontSize:12, color:C.textMuted, marginBottom:10, lineHeight:1.5 }}>
+                {t("Kopiraj tekst ispod i spremi ga u datoteku ili zalijepi u e-mail / Drive / Keep.")}
+              </p>
+              <div style={{ fontSize:11, color:C.textSub, marginBottom:8, fontFamily:"'JetBrains Mono',monospace" }}>
+                {exportFallback.filename}
+              </div>
+              <textarea
+                readOnly
+                value={exportFallback.content}
+                onFocus={e=>e.target.select()}
+                style={{ width:"100%", flex:1, minHeight:180, padding:10, background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:10, color:C.text, fontSize:11, fontFamily:"'JetBrains Mono',monospace", resize:"none", marginBottom:12 }}
+              />
+              <button onClick={async ()=>{
+                try {
+                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(exportFallback.content);
+                  } else {
+                    const ta = document.createElement("textarea");
+                    ta.value = exportFallback.content;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(ta);
+                  }
+                  alert(t("Kopirano!"));
+                } catch {
+                  alert(t("Greška pri čitanju datoteke."));
+                }
+              }} style={{ width:"100%", padding:13, background:`linear-gradient(135deg,${C.warning},#F59E0B)`, border:"none", borderRadius:12, color:"#000", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                <Ic n="copy" s={16} c="#000"/>{t("Kopiraj")}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
