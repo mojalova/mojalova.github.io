@@ -178,13 +178,17 @@ const isCapacitor = () =>
 const nativeSaveAndShare = async (filename, content) => {
   if (!isCapacitor()) return false;
   try {
-    const fs = await import("@capacitor/filesystem");
-    const sh = await import("@capacitor/share");
+    // Dynamic imports — these packages only exist in the APK build.
+    // On Vercel/web the import() call throws and we return false gracefully.
+    const [fs, sh] = await Promise.all([
+      import("@capacitor/filesystem").catch(() => null),
+      import("@capacitor/share").catch(() => null),
+    ]);
+    if (!fs || !sh) return false;
+
     const { Filesystem, Directory, Encoding } = fs;
     const { Share } = sh;
 
-    // Write to the Documents directory so the file is visible via the phone's
-    // Files app and survives app uninstall.
     const writeRes = await Filesystem.writeFile({
       path: filename,
       data: content,
@@ -193,9 +197,6 @@ const nativeSaveAndShare = async (filename, content) => {
       recursive: true,
     });
 
-    // Immediately open the native share sheet so the user can also send the
-    // file elsewhere (email, Drive, etc). Failure here is non-fatal — the
-    // file is already saved to Documents.
     try {
       await Share.share({
         title: "Moja lova — Backup",
