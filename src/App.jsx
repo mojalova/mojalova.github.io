@@ -93,6 +93,9 @@ const EN_DICT = {
   "Davno nisi napravio backup": "Haven't backed up in a while",
   "Klikni ovdje da sačuvaš kopiju podataka.": "Tap here to save a copy of your data.",
   "Podsjeti me za 7 dana": "Remind me in 7 days",
+  "Stavka obrisana": "Item deleted",
+  "Grupa obrisana": "Group deleted",
+  "Skica obrisana": "Draft deleted",
   "Kopiraj tekst ispod i spremi ga u datoteku ili zalijepi u e-mail / Drive / Keep.": "Copy the text below and save it to a file, or paste it into e-mail / Drive / Keep.",
   "Spremi backup koristeći jednu od opcija ispod. Ako jedna ne radi, druga hoće.": "Save the backup using one of the options below. If one doesn't work, another will.",
   "Podijeli": "Share",
@@ -875,8 +878,52 @@ export default function App() {
   };
 
   const updTx  = tx => { setTxs(p=>p.map(x=>x.id===tx.id?tx:x)); setEditId(null); setPage("transactions"); };
-  const delTx  = id => setTxs(p=>p.filter(x=>x.id!==id));
-  const delGrp = g  => setTxs(p=>p.filter(x=>x.installmentGroup!==g));
+
+  // ─── Undo toast infrastructure ─────────────────────────────────────────────
+  // Instead of deleting immediately, we stash the removed items and show a
+  // toast for 5 seconds with an "Undo" button. On timeout the deletion
+  // becomes permanent; on undo we restore the items to their original list.
+  const [undoInfo, setUndoInfo] = useState(null); // { label, restore, timeoutId }
+
+  // Clear any pending undo timer when a new undo replaces it (user deletes
+  // twice quickly — the first one commits immediately, the second gets its
+  // own 5-second window).
+  const startUndo = (label, restore) => {
+    setUndoInfo(prev => {
+      if (prev && prev.timeoutId) clearTimeout(prev.timeoutId);
+      const tid = setTimeout(() => setUndoInfo(null), 5000);
+      return { label, restore, timeoutId: tid };
+    });
+  };
+
+  const doUndo = () => {
+    if (!undoInfo) return;
+    clearTimeout(undoInfo.timeoutId);
+    undoInfo.restore();
+    setUndoInfo(null);
+  };
+
+  // Clean up any pending timer on unmount so we don't leak timers.
+  useEffect(() => () => { if (undoInfo && undoInfo.timeoutId) clearTimeout(undoInfo.timeoutId); }, [undoInfo]);
+
+  const delTx  = id => {
+    const removed = txs.find(x => x.id === id);
+    if (!removed) return;
+    setTxs(p => p.filter(x => x.id !== id));
+    startUndo(t("Stavka obrisana"), () => setTxs(p => [...p, removed]));
+  };
+  const delGrp = g => {
+    const removed = txs.filter(x => x.installmentGroup === g);
+    if (!removed.length) return;
+    setTxs(p => p.filter(x => x.installmentGroup !== g));
+    startUndo(t("Grupa obrisana") + ` (${removed.length})`, () => setTxs(p => [...p, ...removed]));
+  };
+  const delDraft = id => {
+    const removed = drafts.find(d => d.id === id);
+    if (!removed) return;
+    setDrafts(p => p.filter(d => d.id !== id));
+    startUndo(t("Skica obrisana"), () => setDrafts(p => [...p, removed]));
+  };
 
   const wipe = () => {
     setTxs([]); setDrafts([]); save(K.db,[]); save(K.drf,[]);
@@ -974,7 +1021,41 @@ export default function App() {
       {page==="settings"     && <Settings {...shared} txs={txs} setTxs={setTxs} prefs={prefs} updPrefs={updP} updUser={updU} sec={sec} updSec={updS} lists={lists} setLists={setLists} subPg={subPg} setSubPg={setSubPg} setUnlocked={setUnlocked} setSetupMode={setSetupMode}/>}
 
       {showQuickAdd && <QuickAddModal C={C} t={t} onClose={()=>setShowQuickAdd(false)} onSave={d => { setDrafts(p=>[{id:Date.now().toString(), amount:d.amount, description:d.desc, date:new Date().toISOString()}, ...p]); setShowQuickAdd(false); }}/>}
-      {showActionHub && <ActionHubModal C={C} t={t} drafts={drafts} onClose={()=>setShowActionHub(false)} onNew={()=>{ setPage("add"); setDraftEdit(null); setShowActionHub(false); }} onSelect={d=>{ setDraftEdit(d); setPage("add"); setShowActionHub(false); }} onDel={id=>setDrafts(p=>p.filter(d=>d.id!==id))}/>}
+      {showActionHub && <ActionHubModal C={C} t={t} drafts={drafts} onClose={()=>setShowActionHub(false)} onNew={()=>{ setPage("add"); setDraftEdit(null); setShowActionHub(false); }} onSelect={d=>{ setDraftEdit(d); setPage("add"); setShowActionHub(false); }} onDel={delDraft}/>}
+
+      {/* Undo toast — appears above the bottom nav for 5 seconds after a
+          destructive action so the user can recover from misclicks. */}
+      {undoInfo && (
+        <div
+          className="fi"
+          style={{
+            position:"fixed", bottom:96, left:"50%", transform:"translateX(-50%)",
+            width:"calc(100% - 32px)", maxWidth:440, zIndex:150,
+            background:C.card, border:`1px solid ${C.border}`,
+            borderRadius:12, padding:"10px 12px 10px 14px",
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            gap:10, boxShadow:`0 8px 24px rgba(0,0,0,.25)`,
+          }}
+        >
+          <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0, flex:1 }}>
+            <Ic n="trash" s={14} c={C.expense}/>
+            <span style={{ fontSize:13, color:C.text, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+              {undoInfo.label}
+            </span>
+          </div>
+          <button
+            onClick={doUndo}
+            style={{
+              background:`${C.accent}22`, border:`1px solid ${C.accent}60`,
+              borderRadius:8, padding:"6px 12px", cursor:"pointer",
+              color:C.accent, fontSize:13, fontWeight:700, flexShrink:0,
+              display:"flex", alignItems:"center", gap:5,
+            }}
+          >
+            <Ic n="zap" s={12} c={C.accent}/>{t("Vrati")}
+          </button>
+        </div>
+      )}
 
       <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:C.navBg, borderTop:`1px solid ${C.border}`, display:"flex", justifyContent:"space-around", padding:"6px 0 16px", zIndex:100, backdropFilter:"blur(12px)" }}>
         {[["dashboard","home","Početna"],["transactions","list","Transakcije"],["add","plus",""],["charts","bar","Statistika"],["settings","gear","Postavke"]].map(([id,ic,lb])=>(
