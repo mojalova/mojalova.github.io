@@ -877,7 +877,7 @@ export default function App() {
   const [showActionHub, setShowActionHub] = useState(false);
 
   // Filters
-  const [txFilter, setTxFilter]           = useState("Čeka plaćanje");
+  const [txFilter, setTxFilter]           = useState("pending");
   const [statTab, setStatTab]             = useState("expected");
   const [statMonth, setStatMonth]         = useState("YEAR");
   const [statExpFilter, setStatExpFilter] = useState({recurring:true, rate:true, kredit:true, processing:true});
@@ -1569,14 +1569,14 @@ function Dashboard({ C, data, setTxs, year, user, lists, setPage, onQuickAdd, t,
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                   <div style={{ fontSize:11, fontWeight:600, color:C.warning, display:"flex", alignItems:"center", gap:5 }}>
                     <Ic n="coins" s={12} c={C.warning}/>{t("Za platiti ovog mjeseca")}
-                    {todoItems.length > 4 && <span style={{ background:`${C.warning}25`, borderRadius:10, padding:"1px 7px", fontSize:10, fontWeight:700, color:C.warning }}>+{todoItems.length-4}</span>}
+                    {todoItems.length > 5 && <span style={{ background:`${C.warning}25`, borderRadius:10, padding:"1px 7px", fontSize:10, fontWeight:700, color:C.warning }}>+{todoItems.length-5}</span>}
                   </div>
                   <div style={{ fontSize:12, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:C.warning }}>
                     {fmtEur(todoItems.reduce((s,i)=>s+i.amount,0))}
                   </div>
                 </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {todoItems.slice(0, 4).map(item => (
+                <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:280, overflowY:"auto", paddingRight:2 }}>
+                  {todoItems.slice(0, 5).map(item => (
                     <div key={item.kind+"-"+item.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 9px", background:C.cardAlt, borderRadius:9, border:`1px solid ${C.border}` }}>
                       <div style={{
                         width:28, height:28, borderRadius:8,
@@ -1610,7 +1610,7 @@ function Dashboard({ C, data, setTxs, year, user, lists, setPage, onQuickAdd, t,
                       </button>
                     </div>
                   ))}
-                  {todoItems.length > 4 && (
+                  {todoItems.length > 5 && (
                     <button
                       onClick={()=>setPage("transactions")}
                       style={{ padding:"6px", background:"transparent", border:"none", color:C.accent, fontSize:11, fontWeight:600, cursor:"pointer" }}
