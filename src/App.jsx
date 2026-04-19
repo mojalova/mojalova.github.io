@@ -115,6 +115,9 @@ const EN_DICT = {
   "Prethodna": "Previous", "Sljedeća": "Next",
   "Bit ćeš upozoren/a pri unosu troška koji bi prešao limit.": "You will be warned when adding an expense that would exceed the limit.",
   "Sve godine": "All years", "Izvezi godinu": "Export year",
+  "Biometrija uspješna. Unesi PIN jednom za ovu sesiju.": "Biometrics successful. Enter PIN once for this session.",
+  "Dospjelo": "Overdue",
+  "Prikazuje neplaćene stavke s rokom do danas (tekući + prošli mjeseci)": "Shows unpaid items due up to today (current + past months)",
   "Trend 3g.": "3yr Trend",
   "Primici vs Troškovi — 3 godine": "Income vs Expenses — 3 years",
   "Godišnji saldo — 3 godine": "Annual Balance — 3 years",
@@ -285,7 +288,31 @@ const loadAndDecryptAll = async (key, defLists) => {
 };
 
 
-// ─── Capacitor native bridge (only when running inside the APK) ──────────────
+// ─── Session key cache ────────────────────────────────────────────────────────
+// After successful PIN+crypto unlock, we export the AES key to sessionStorage
+// so that biometric unlock within the same session can skip the PIN entirely.
+// sessionStorage is cleared automatically when the browser tab / app is closed,
+// making it safe for short-term key caching.
+const SESSION_KEY = "ml_sk";
+
+const cacheKeyToSession = async (key) => {
+  try {
+    const raw = await crypto.subtle.exportKey("raw", key);
+    sessionStorage.setItem(SESSION_KEY, bytesToB64(new Uint8Array(raw)));
+  } catch { /* non-critical */ }
+};
+
+const loadKeyFromSession = async () => {
+  try {
+    const b64 = sessionStorage.getItem(SESSION_KEY);
+    if (!b64) return null;
+    return crypto.subtle.importKey("raw", b64ToBytes(b64), { name:"AES-GCM", length:256 }, false, ["encrypt","decrypt"]);
+  } catch { return null; }
+};
+
+const clearSessionKey = () => {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+};
 // The web build stays plain: if @capacitor/* packages aren't installed, these
 // imports silently fail and we fall back to Web Share/download paths.
 const isCapacitor = () =>
@@ -551,12 +578,15 @@ function LockScreen({ C, sec, onUnlock, onWipe, t }) {
           timeout: 60000
         }
       });
-      // Biometry can't provide the PIN, so it can't decrypt data.
-      // Show a helpful message if the vault is encrypted.
-      if (sec.pinHashVersion === "v2") {
-        setErr(t("Biometrija uspješna. Unesi PIN za dešifriranje podataka."));
+      // Biometry passed. Check whether we have a cached session key.
+      // If yes → unlock fully without PIN. If no → prompt for PIN.
+      const cachedKey = await loadKeyFromSession();
+      if (sec.pinHashVersion === "v2" && !cachedKey) {
+        // Encrypted vault, no session cache → user must enter PIN once this session.
+        setErr(t("Biometrija uspješna. Unesi PIN jednom za ovu sesiju."));
       } else {
-        onUnlock(null, false, true); // legacy: biometry only, no crypto
+        // Either: cached key exists (skip PIN) OR no encryption at all.
+        onUnlock(null, false, true);
       }
     } catch { setErr(t("Biometrija otkazana ili neuspješna.")); }
   }, [onUnlock, sec, t]);
@@ -1043,6 +1073,7 @@ export default function App() {
         setTxs(data.txs); setDrafts(data.drafts); setLists(data.lists); setUser(data.user);
       }
       setEncKey(key);
+      await cacheKeyToSession(key);
       setUnlocked(true);
     } catch (e) {
       console.error("Crypto unlock failed:", e);
@@ -1059,6 +1090,7 @@ export default function App() {
     await encryptAndSaveAll(key, { txs, drafts, lists, user });
     setSec(v => ({ ...v, pinHash, pinSalt, encSalt, pinHashVersion:"v2", attempts:0, totalFailed:0, lockedUntil:null }));
     setEncKey(key);
+    await cacheKeyToSession(key);
     setSetupMode(false);
   };
 
@@ -1071,6 +1103,7 @@ export default function App() {
     await encryptAndSaveAll(newKey, { txs, drafts, lists, user });
     setSec(v => ({ ...v, pinHash, pinSalt, encSalt, pinHashVersion:"v2", attempts:0, totalFailed:0 }));
     setEncKey(newKey);
+    await cacheKeyToSession(newKey);
   };
 
   // Called after PIN verified during removal — save all data as plaintext.
@@ -1081,6 +1114,7 @@ export default function App() {
     save(K.usr, user);
     setSec(v => ({ ...v, pinHash:null, pinSalt:null, encSalt:null, pinHashVersion:null, attempts:0, totalFailed:0 }));
     setEncKey(null);
+    clearSessionKey();
   };
 
 
@@ -1206,11 +1240,20 @@ export default function App() {
     <LockScreen C={C} sec={sec} t={t}
       onUnlock={async (pin, isLegacy, bioOnly) => {
         if (bioOnly) {
-          // Biometry path without encryption (legacy v1 or no-enc).
-          updS({attempts:0, lockedUntil:null});
-          setTxs(load(K.db,[])); setDrafts(load(K.drf,[]));
-          setLists(load(K.lst,DEF_LISTS)); setUser(load(K.usr,{}));
-          setUnlocked(true);
+          // Biometry path: try to restore AES key from sessionStorage first.
+          const cachedKey = await loadKeyFromSession();
+          if (cachedKey) {
+            // Session has a cached key — decrypt data and unlock without PIN.
+            const data = await loadAndDecryptAll(cachedKey, DEF_LISTS);
+            setTxs(data.txs); setDrafts(data.drafts); setLists(data.lists); setUser(data.user);
+            setEncKey(cachedKey);
+            updS({attempts:0, lockedUntil:null});
+            setUnlocked(true);
+          } else {
+            // No cached key — biometry passed but we still need PIN to decrypt.
+            // LockScreen will surface the PIN form with a helpful message.
+            // (This happens on first unlock of a new session.)
+          }
           return;
         }
         await handleCryptoUnlock(pin, isLegacy);
@@ -1263,7 +1306,7 @@ export default function App() {
         </div>
       )}
 
-      {page==="dashboard"    && <Dashboard    {...shared} data={txs} setTxs={setTxs} setPage={setPage} onQuickAdd={()=>setShowQuickAdd(true)} prefs={prefs} updPrefs={updP} setSubPg={setSubPg}/>}
+      {page==="dashboard"    && <Dashboard    {...shared} data={txs} setTxs={setTxs} setPage={setPage} setTxFilter={setTxFilter} onQuickAdd={()=>setShowQuickAdd(true)} prefs={prefs} updPrefs={updP} setSubPg={setSubPg}/>}
       {page==="add"          && <TxForm {...shared} txs={txs} draft={draftEdit} setLists={setLists} onSubmit={tx=>{ addTx(tx); if(draftEdit){ setDrafts(p=>p.filter(d=>d.id!==draftEdit.id)); setDraftEdit(null); } }} onCancel={()=>{ setPage("dashboard"); setDraftEdit(null); }} onGoRecurring={()=>setPage("recurring")}/>}
       {page==="edit"         && <TxForm {...shared} txs={txs} tx={txs.find(x=>x.id===editId)} setLists={setLists} onSubmit={updTx} onCancel={()=>{ setEditId(null); setPage("transactions"); }}/>}
       {page==="transactions" && <TxList {...shared} data={txs} filter={txFilter} setFilter={setTxFilter} onEdit={id=>{ setEditId(id); setPage("edit"); }} onDelete={delTx} onDeleteGroup={delGrp} onPay={id=>setTxs(p=>p.map(x=>x.id===id?{...x,status:"Plaćeno",date:new Date().toISOString().split("T")[0]}:x))}/>}
@@ -1335,7 +1378,7 @@ export default function App() {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-function Dashboard({ C, data, setTxs, year, user, lists, setPage, onQuickAdd, t, lang, prefs, updPrefs, setSubPg }) {
+function Dashboard({ C, data, setTxs, year, user, lists, setPage, setTxFilter, onQuickAdd, t, lang, prefs, updPrefs, setSubPg }) {
   const cmIdx = curMonthIdx();
   const cm  = MONTHS[cmIdx]; 
   const cmName = lang==="en" ? MONTHS_EN[cmIdx] : cm;
@@ -1521,8 +1564,8 @@ function Dashboard({ C, data, setTxs, year, user, lists, setPage, onQuickAdd, t,
         <div className="su" style={{ background:`linear-gradient(135deg,${C.accent}22,${bal>=0?C.income:C.expense}18)`, border:`1px solid ${bal>=0?C.income:C.expense}40`, borderRadius:18, padding:"16px 18px 16px 16px", marginBottom:10, position:"relative", overflow:"hidden" }}>
           <div style={{ position:"absolute", top:12, right:18, textAlign:"right" }}>
             <div style={{ fontSize:10, fontWeight:700, color:C.textSub, letterSpacing:.3 }}>{wd}</div>
-            <div style={{ fontSize:13, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:C.textSub }}>{dd}.{mm}.</div>
-            <div style={{ fontSize:10, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:C.textMuted, marginTop:1 }}>{yy}.</div>
+            <div style={{ fontSize:13, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:C.textSub, marginRight:-6 }}>{dd}.{mm}.</div>
+            <div style={{ fontSize:10, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:C.textMuted, marginTop:1, marginRight:-6 }}>{yy}.</div>
           </div>
           <div style={{ fontSize:11, color:C.textSub, marginBottom:4, textAlign:"left" }}>{t("Bilanca")} {year}.</div>
           <div style={{ fontSize:28, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:bal>=0?C.income:C.expense, textAlign:"left", paddingRight:65 }}>{fmtEur(bal)}</div>
@@ -1577,21 +1620,23 @@ function Dashboard({ C, data, setTxs, year, user, lists, setPage, onQuickAdd, t,
               </div>
             )}
 
-            {/* Za platiti ovog mjeseca — ograničeno na 4 stavke da nema skrolanja */}
+            {/* Za platiti ovog mjeseca — fiksni header/footer, skrolabili srednji dio */}
             {todoItems.length > 0 && (
-              <div className="su" style={{ background:C.card, border:`1px solid ${C.warning}40`, borderLeft:`4px solid ${C.warning}`, borderRadius:14, padding:"10px 12px", marginBottom:10 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+              <div className="su" style={{ background:C.card, border:`1px solid ${C.warning}40`, borderLeft:`4px solid ${C.warning}`, borderRadius:14, marginBottom:10, display:"flex", flexDirection:"column", maxHeight:320, overflow:"hidden" }}>
+                {/* Fiksni header */}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 12px 8px", flexShrink:0 }}>
                   <div style={{ fontSize:11, fontWeight:600, color:C.warning, display:"flex", alignItems:"center", gap:5 }}>
                     <Ic n="coins" s={12} c={C.warning}/>{t("Za platiti ovog mjeseca")}
-                    {todoItems.length > 5 && <span style={{ background:`${C.warning}25`, borderRadius:10, padding:"1px 7px", fontSize:10, fontWeight:700, color:C.warning }}>+{todoItems.length-5}</span>}
+                    {todoItems.length > 0 && <span style={{ background:`${C.warning}25`, borderRadius:10, padding:"1px 7px", fontSize:10, fontWeight:700, color:C.warning }}>{todoItems.length}</span>}
                   </div>
                   <div style={{ fontSize:12, fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color:C.warning }}>
                     {fmtEur(todoItems.reduce((s,i)=>s+i.amount,0))}
                   </div>
                 </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:280, overflowY:"auto", paddingRight:2 }}>
-                  {todoItems.slice(0, 5).map(item => (
-                    <div key={item.kind+"-"+item.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 9px", background:C.cardAlt, borderRadius:9, border:`1px solid ${C.border}` }}>
+                {/* Skrolabili srednji dio — sve stavke */}
+                <div style={{ overflowY:"auto", flex:1, padding:"0 12px", display:"flex", flexDirection:"column", gap:6 }}>
+                  {todoItems.map(item => (
+                    <div key={item.kind+"-"+item.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 9px", background:C.cardAlt, borderRadius:9, border:`1px solid ${C.border}`, flexShrink:0 }}>
                       <div style={{
                         width:28, height:28, borderRadius:8,
                         background: item.kind==="recurring" ? `${C.accent}20` : `${C.warning}20`,
@@ -1624,14 +1669,15 @@ function Dashboard({ C, data, setTxs, year, user, lists, setPage, onQuickAdd, t,
                       </button>
                     </div>
                   ))}
-                  {todoItems.length > 5 && (
-                    <button
-                      onClick={()=>setPage("transactions")}
-                      style={{ padding:"6px", background:"transparent", border:"none", color:C.accent, fontSize:11, fontWeight:600, cursor:"pointer" }}
-                    >
-                      {t("Prikaži sve")} ({todoItems.length})
-                    </button>
-                  )}
+                </div>
+                {/* Fiksni footer */}
+                <div style={{ padding:"6px 12px 10px", flexShrink:0, borderTop:`1px solid ${C.border}` }}>
+                  <button
+                    onClick={()=>{ if(setTxFilter) setTxFilter("overdue"); setPage("transactions"); }}
+                    style={{ width:"100%", padding:"6px", background:"transparent", border:"none", color:C.accent, fontSize:11, fontWeight:600, cursor:"pointer" }}
+                  >
+                    {t("Prikaži sve")} ({todoItems.length})
+                  </button>
                 </div>
               </div>
             )}
@@ -2006,10 +2052,18 @@ function TxList({ C, data, year, filter, setFilter, onEdit, onDelete, onDeleteGr
     if (filter==="income")   f = f.filter(x=>x.type==="Primitak");
     if (filter==="pending")  f = f.filter(x=>x.status==="Čeka plaćanje");
     if (filter==="processing") f = f.filter(x=>x.status==="U obradi");
-    
+    // "overdue" = pending/processing with date <= today (current + past months, unpaid)
+    if (filter==="overdue") {
+      const today = new Date(); today.setHours(23,59,59,999);
+      f = data.filter(x =>
+        (x.status==="Čeka plaćanje" || x.status==="U obradi") &&
+        new Date(x.date) <= today
+      );
+    }
+
     if (q) f = f.filter(x=>x.description?.toLowerCase().includes(q.toLowerCase())||x.category?.toLowerCase().includes(q.toLowerCase()));
-    
-    if (filter === "pending" || filter === "processing") {
+
+    if (filter === "pending" || filter === "processing" || filter === "overdue") {
         return f.sort((a,b)=>new Date(a.date)-new Date(b.date));
     }
     return f.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -2031,21 +2085,27 @@ function TxList({ C, data, year, filter, setFilter, onEdit, onDelete, onDeleteGr
           <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)" }}><Ic n="search" s={16} c={C.textMuted}/></span>
         </div>
 
-        <div style={{ display:"flex", gap:6, marginBottom:12, overflowX:"auto", paddingBottom:4 }}>
+        <div style={{ display:"flex", gap:6, marginBottom:4, overflowX:"auto", paddingBottom:4 }}>
           {[
             ["all",t("Sve")],
             ["expense",t("Plaćeno")],
             ["pending",t("Čeka plaćanje")],
+            ["overdue",t("Dospjelo")],
             ["processing",t("U obradi")],
             ["income",t("Primici")]
           ].map(([id,lb])=>(
-            <Pill key={id} label={lb} active={filter===id} 
-              color={id==="pending" ? "#F87171" : id==="processing" ? "#FB923C" : id==="expense" ? C.income : id==="income" ? C.income : C.accent} 
-              inactiveColor={id==="pending" ? "#FB923C" : undefined}
+            <Pill key={id} label={lb} active={filter===id}
+              color={id==="pending"||id==="overdue" ? "#F87171" : id==="processing" ? "#FB923C" : id==="expense" ? C.income : id==="income" ? C.income : C.accent}
+              inactiveColor={id==="pending"||id==="overdue" ? "#FB923C" : undefined}
               onClick={()=>setFilter(id)}/>
           ))}
         </div>
-
+        {filter==="overdue" && (
+          <div style={{ fontSize:11, color:C.textMuted, marginBottom:8, padding:"4px 2px", display:"flex", alignItems:"center", gap:5 }}>
+            <Ic n="alert" s={11} c={C.warning}/>
+            {t("Prikazuje neplaćene stavke s rokom do danas (tekući + prošli mjeseci)")}
+          </div>
+        )}
         {rows.length===0
           ? <div style={{ textAlign:"center", padding:50, color:C.textMuted }}>
               <Ic n="list" s={44} c={C.border} style={{ marginBottom:12, opacity:.3 }}/>
