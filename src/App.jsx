@@ -156,6 +156,8 @@ export default function App() {
   // ─── Auto-sync when user logs in ──────────────────────────────────────────
   useEffect(() => {
     if (supaUser && unlocked) {
+      const needsSync = localStorage.getItem("ml_sync_needed");
+      if (needsSync) localStorage.removeItem("ml_sync_needed");
       handleSyncAfterLogin(supaUser.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
