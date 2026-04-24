@@ -608,7 +608,7 @@ function GeneralSettings({ C, txs, setTxs, drafts, lists, setLists, prefs, updPr
   };
 
   // Restore — validates payload, confirms, writes to localStorage, reloads.
-  const fullImport = (e) => {
+  const fullImport = async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = ""; // allow re-selecting the same file
     if (!file) return;
@@ -646,11 +646,9 @@ function GeneralSettings({ C, txs, setTxs, drafts, lists, setLists, prefs, updPr
           // Set lastBackupAt=now since successful import means data exists in a backup file.
           save(K.prf, { ...load(K.prf,{}), ...data.prefs, onboarded: true, lastBackupAt: Date.now(), backupSnoozedUntil: null });
         }
+        // Set flag so App.jsx knows to sync after reload
+        try { localStorage.setItem("ml_sync_needed", "1"); } catch {}
         alert(t("Podaci su uspješno vraćeni. Aplikacija će se ponovno učitati."));
-        // Trigger cloud sync after reload if user is logged in
-        if (supaUser && onSyncToCloud) {
-          try { await onSyncToCloud(data.txs || [], data.lists, data.user); } catch {}
-        }
         window.location.reload();
       } catch {
         alert(t("Datoteka nije valjan Moja lova backup."));
