@@ -1069,64 +1069,82 @@ function AboutScreen({ C, onBack, t, lang }) {
       title: t("Pomoć"),
       body: lang === "en" ? `
 GETTING STARTED
-Open the app and tap the blue + button at the bottom to record your first transaction. Choose between Expense or Income, fill in the amount, description, category, location and payment method.
+Open the app at moja-lova-app.vercel.app. Sign in with Google or email/password. After login, data syncs automatically across all your devices in real time.
 
-TRANSACTIONS
+ADDING TRANSACTIONS
+Tap the blue + button at the bottom. Required fields: Amount and Description. Optional fields (auto-filled as "Other" if empty): Category and Location. Default payment: Cash. Default status: Paid.
+
+TRANSACTION TYPES
 • Expense: a payment or cost
 • Income: money received (salary, transfer…)
-• Recurring obligation: a monthly repeating expense (subscription, loan, rent). Enable the "Recurring obligation?" toggle inside the Expense form.
-• Installments: a purchase spread over multiple months (e.g. 24 installments for an appliance). Enable the "Installments?" toggle inside the Expense form.
+• Recurring obligation: monthly repeating expense. Enable "Recurring obligation?" in the Expense form.
+• Installments: purchase spread over months. Each installment appears in its own due month in Statistics.
 
-DASHBOARD
-The home screen shows your yearly balance, monthly income/expenses, top spending categories and a "To pay this month" list. Tap Pay next to any item to mark it as paid instantly.
+HOME SCREEN
+Shows yearly balance, monthly income/expenses, top spending categories and "To pay this month" — all unpaid obligations including overdue from past months. Tap Pay to mark as paid instantly.
 
 TRANSACTIONS SCREEN
-Filters at the top let you view: All, Pending, Paid, Processing, Income. The default view shows "Pending" so you immediately see what needs attention.
+Opens on "Overdue" filter (all unpaid with past due date). Each filter has its own left border color. A red "Duplicate?" badge appears if two transactions share the same amount, date and description. Search works on description, category, location and notes.
 
 STATISTICS
-Four views: Expected obligations, Categories, Overview/Balance, Payments & Locations. Use the month pills to narrow down to a specific period.
+Opens on the current month. Periods: month / year / all time. Tabs: Expected, Categories, Overview/Balance, Payments & Locations, 3yr Trend. Installments shown in their due month — not all at once.
 
 SETTINGS
-• Active Year — switch the year you're analyzing
-• Manage Obligations — edit or delete recurring obligations
-• List Customization — add your own categories, locations, payment methods
-• General Settings — profile, theme, language, security, backup
+• Active Year — switch year for analysis
+• Manage Obligations — edit/delete recurring obligations
+• List Customization — add your own categories, locations, payment methods, budget limits
+• Account — sign out, manual "Sync to cloud" button
+
+CLOUD SYNC
+Green dot = synced. Yellow dot = syncing. Real-time: changes on one device appear instantly on others. Works offline — syncs on reconnection.
 
 BACKUP & RESTORE
-Your data lives only on your device. Go to Settings → General → Export (Backup) and use Copy, Share, or Download to save your data. To restore, use Settings → General → Import (Restore) and pick your JSON backup file.
+Export: Settings → Account → Export (Backup). Import: Settings → Account → Import (Restore). Cloud users are protected automatically.
 
 PIN & BIOMETRICS
-Set a 4-6 digit PIN in Settings → General → Set PIN Protection. After 5 wrong attempts the app locks for 30 seconds. After 10 wrong attempts all data is wiped. Enable Face ID / fingerprint in Settings → General → Biometrics.
+Set a 4-6 digit PIN in Settings → Security. After 5 wrong attempts: locked 30s. After 10: all data wiped. Biometrics: first session requires PIN once, then fingerprint/Face ID works independently.
+
+MINIMIZE BEHAVIOR
+After minimizing and reopening, the app always returns to the Home screen.
 `.trim() : `
 POČETAK RADA
-Otvori aplikaciju i pritisni plavi + gumb na dnu za unos prve transakcije. Odaberi Isplata ili Primitak, unesi iznos, opis, kategoriju, lokaciju i način plaćanja.
+Otvori aplikaciju na moja-lova-app.vercel.app. Prijavi se Google računom ili emailom/lozinkom. Nakon prijave, podaci se automatski sinkroniziraju između svih uređaja u stvarnom vremenu.
 
-TRANSAKCIJE
+UNOS TRANSAKCIJA
+Pritisni plavi + gumb na dnu. Obavezna polja: Iznos i Opis. Opcionalna polja (automatski "Ostalo" ako su prazna): Kategorija i Lokacija. Zadano plaćanje: Gotovina. Zadani status: Plaćeno.
+
+VRSTE TRANSAKCIJA
 • Isplata: plaćanje ili trošak
 • Primitak: primljeni novac (plaća, uplata…)
-• Redovna obveza: trošak koji se ponavlja svaki mjesec (pretplata, kredit, najam). Uključi prekidač "Redovna obveza?" unutar forme za Isplatu.
-• Obročna otplata: kupnja raspoređena na više mjeseci (npr. 24 rate za uređaj). Uključi prekidač "Obročna otplata?" unutar forme za Isplatu.
+• Redovna obveza: trošak koji se ponavlja svaki mjesec. Uključi "Redovna obveza?" u formi za Isplatu.
+• Obročna otplata: kupnja raspoređena na više mjeseci. Svaki obrok se prikazuje u svom mjesecu dospijeća u Statistici.
 
 POČETNI EKRAN
-Prikazuje godišnju bilancu, primike/troškove za tekući mjesec, top kategorije potrošnje i popis "Za platiti ovog mjeseca". Pritisni Plati pored stavke da je odmah označi kao plaćenu.
+Prikazuje godišnju bilancu, primike/troškove za tekući mjesec, top kategorije i "Za platiti ovog mjeseca" — sve neplaćene obveze uključujući dospjele iz prošlih mjeseci. Pritisni Plati za trenutnu oznaku.
 
 EKRAN TRANSAKCIJE
-Filteri na vrhu: Sve, Čeka plaćanje, Plaćeno, U obradi, Primici. Zadani prikaz je "Čeka plaćanje" da odmah vidiš što treba platiti.
+Otvara se na filteru "Dospjelo" (sve neplaćeno s prošlim datumom). Svaki filter ima svoju boju lijevog ruba kartice. Crvena oznaka "Duplikat?" upozorava ako dvije transakcije imaju isti iznos, datum i opis. Pretraga radi po opisu, kategoriji, lokaciji i napomenama.
 
 STATISTIKA
-Četiri prikaza: Očekivano, Kategorije, Pregled/Saldo, Plaćanje i Lokacije. Koristi pill gumbe za odabir određenog mjeseca ili cijele godine.
+Otvara se na tekućem mjesecu. Periodi: mjesec / godina / sve. Tabovi: Očekivano, Kategorije, Pregled/Saldo, Plaćanje/Lokacije, Trend 3g. Rate se prikazuju u svom mjesecu dospijeća — ne sve odjednom.
 
 POSTAVKE
 • Aktivna godina — prebaci godinu za analizu
-• Upravljaj obvezama — uredi ili obriši redovne obveze
-• Prilagodba popisa — dodaj vlastite kategorije, lokacije, načine plaćanja
-• Opće postavke — profil, tema, jezik, sigurnost, backup
+• Upravljaj obvezama — uredi/obriši redovne obveze
+• Prilagodba popisa — vlastite kategorije, lokacije, načini plaćanja, budžet limiti
+• Račun — odjava, gumb "Sinkroniziraj s oblakom"
 
-BACKUP I VRAĆANJE PODATAKA
-Podaci se čuvaju isključivo na tvom uređaju. Idi u Postavke → Opće → Izvezi (Backup) i koristi Kopiraj, Podijeli ili Preuzmi za spremanje podataka. Za vraćanje: Postavke → Opće → Učitaj (Restore).
+CLOUD SINKRONIZACIJA
+Zelena točkica = sinkronizirano. Žuta točkica = sinkronizacija u tijeku. Realtime: promjene na jednom uređaju odmah vidljive na drugom. Radi offline — sinkronizira pri povratku konekcije.
+
+BACKUP I VRAĆANJE
+Izvozi: Postavke → Račun → Izvezi (Backup). Uvezi: Postavke → Račun → Učitaj (Restore). Cloud korisnici su automatski zaštićeni.
 
 PIN I BIOMETRIJA
-Postavi 4-6 znamenkasti PIN u Postavke → Opće → Postavi PIN zaštitu. Nakon 5 krivih pokušaja aplikacija se zaključa 30 sekundi. Nakon 10 krivih pokušaja svi podaci se brišu. Fingerprint/Face ID aktiviraj u Postavke → Opće → Biometrija.
+Postavi 4-6 znamenkasti PIN u Postavke → Sigurnost. Nakon 5 krivih: zaključano 30s. Nakon 10 krivih: svi podaci se brišu. Biometrija: prva sesija uvijek traži PIN jednom, zatim otisak prsta/lice radi samostalno.
+
+PONAŠANJE PRI MINIMIZIRANJU
+Nakon minimiziranja i ponovnog otvaranja, aplikacija uvijek vraća na Početni ekran.
 `.trim()
     },
     licences: {
