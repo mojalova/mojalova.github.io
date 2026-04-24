@@ -526,6 +526,7 @@ export default function App() {
     @keyframes fi{from{opacity:0}to{opacity:1}}
     @keyframes spin{to{transform:rotate(360deg)}}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    @keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.8}}
     .su{animation:su .25s ease-out both} .fi{animation:fi .2s ease-out both}
     input[type=date]::-webkit-calendar-picker-indicator{filter:${theme==="dark"?"invert(1)":"none"};opacity:.5;}
     select{appearance:none;-webkit-appearance:none;}
@@ -548,10 +549,44 @@ export default function App() {
 
   // Sync indicator overlay
   if (syncing) return (
-    <div style={{...wrap, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16}}>
+    <div style={{...wrap, padding:"0 16px"}}>
       <style>{gs}</style>
-      <span style={{width:36,height:36,borderRadius:"50%",border:`3px solid ${C.accent}`,borderTopColor:"transparent",display:"inline-block",animation:"spin .7s linear infinite"}}/>
-      <p style={{color:C.textMuted, fontSize:14}}>{t("Sinkronizacija podataka…")}</p>
+      {/* Header skeleton */}
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 0 12px"}}>
+        <div style={{width:120, height:22, borderRadius:8, background:C.cardAlt, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+        <div style={{width:80, height:30, borderRadius:10, background:C.cardAlt, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+      </div>
+      {/* Balance card skeleton */}
+      <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:18, padding:18, marginBottom:12}}>
+        <div style={{width:80, height:12, borderRadius:6, background:C.cardAlt, marginBottom:10, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+        <div style={{width:150, height:28, borderRadius:8, background:C.cardAlt, marginBottom:12, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+        <div style={{display:"flex", gap:10}}>
+          <div style={{flex:1, height:48, borderRadius:12, background:C.cardAlt, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+          <div style={{flex:1, height:48, borderRadius:12, background:C.cardAlt, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+        </div>
+      </div>
+      {/* Chart skeleton */}
+      <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:18, padding:18, marginBottom:12, display:"flex", alignItems:"flex-end", gap:8, height:140}}>
+        {[60,85,45,95,70,55,80,40,90,65,75,50].map((h,i)=>(
+          <div key={i} style={{flex:1, height:`${h}%`, borderRadius:4, background:C.cardAlt, animation:`shimmer 1.4s ease-in-out ${i*0.08}s infinite`}}/>
+        ))}
+      </div>
+      {/* List skeleton */}
+      {[1,2,3].map(i=>(
+        <div key={i} style={{background:C.card, border:`1px solid ${C.border}`, borderLeft:`3px solid ${C.cardAlt}`, borderRadius:14, padding:13, marginBottom:8, display:"flex", alignItems:"center", gap:10}}>
+          <div style={{width:36, height:36, borderRadius:10, background:C.cardAlt, flexShrink:0, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+          <div style={{flex:1}}>
+            <div style={{width:"60%", height:12, borderRadius:6, background:C.cardAlt, marginBottom:7, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+            <div style={{width:"40%", height:10, borderRadius:6, background:C.cardAlt, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+          </div>
+          <div style={{width:60, height:16, borderRadius:6, background:C.cardAlt, animation:"shimmer 1.4s ease-in-out infinite"}}/>
+        </div>
+      ))}
+      {/* Sync label */}
+      <div style={{textAlign:"center", marginTop:8, display:"flex", alignItems:"center", justifyContent:"center", gap:8}}>
+        <span style={{width:8,height:8,borderRadius:"50%",background:C.warning,display:"inline-block",animation:"pulse 1s infinite"}}/>
+        <span style={{color:C.textMuted, fontSize:12}}>{t("Sinkronizacija podataka…")}</span>
+      </div>
     </div>
   );
 
