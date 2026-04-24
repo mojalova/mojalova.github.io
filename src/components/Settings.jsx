@@ -524,7 +524,7 @@ function RecurringEditor({ C, items, lists, onBack, t }) {
 }
 
 // ─── GeneralSettings ──────────────────────────────────────────────────────────
-function GeneralSettings({ C, txs, setTxs, drafts, lists, setLists, prefs, updPrefs, user, updUser, sec, updSec, year, setSetupMode, setUnlocked, onBack, onAbout, onChangePinCrypto, onRemovePinCrypto, t, lang }) {
+function GeneralSettings({ C, txs, setTxs, drafts, lists, setLists, prefs, updPrefs, user, updUser, sec, updSec, year, setSetupMode, setUnlocked, onBack, onAbout, onChangePinCrypto, onRemovePinCrypto, supaUser, onSignOut, t, lang }) {
   const [pinChg,  setPinChg]  = useState(false);
   const [rmPin,   setRmPin]   = useState(false);
   const [vPin,    setVPin]    = useState("");
@@ -1397,7 +1397,7 @@ function Settings({ C, txs, setTxs, drafts, prefs, updPrefs, user, updUser, list
 
   if (subPg) {
     if (subPg === "general") {
-      return <GeneralSettings C={C} txs={txs} setTxs={setTxs} drafts={drafts} lists={lists} setLists={setLists} prefs={prefs} updPrefs={updPrefs} user={user} updUser={updUser} sec={sec} updSec={updSec} year={year} setSetupMode={setSetupMode} setUnlocked={setUnlocked} onBack={()=>setSubPg(null)} onAbout={()=>setSubPg("about")} onChangePinCrypto={onChangePinCrypto} onRemovePinCrypto={onRemovePinCrypto} t={t} lang={lang} />;
+      return <GeneralSettings C={C} txs={txs} setTxs={setTxs} drafts={drafts} lists={lists} setLists={setLists} prefs={prefs} updPrefs={updPrefs} user={user} updUser={updUser} sec={sec} updSec={updSec} year={year} setSetupMode={setSetupMode} setUnlocked={setUnlocked} onBack={()=>setSubPg(null)} onAbout={()=>setSubPg("about")} onChangePinCrypto={onChangePinCrypto} onRemovePinCrypto={onRemovePinCrypto} supaUser={supaUser} onSignOut={onSignOut} t={t} lang={lang} />;
     }
     if (subPg === "recurring") {
       return <RecurringEditor C={C} items={lists.recurring||[]} lists={lists} t={t} onBack={arr=>{ setLists(l=>({...l,recurring:arr})); setSubPg(null); }}/>;
