@@ -250,8 +250,9 @@ export default function App() {
     setSec(newSec);
     secRef.current = newSec;
     setEncKey(key);
-    await cacheKeyToSession(key);
-    setUnlocked(true); // user just set PIN, no need to re-authenticate
+    // Do NOT cache key here — user must enter PIN on next open.
+    // Key is cached only after successful unlock (handleCryptoUnlock).
+    setUnlocked(true);
     setSetupMode(false);
   };
 
@@ -267,7 +268,8 @@ export default function App() {
     setSec(newSec);
     secRef.current = newSec;
     setEncKey(newKey);
-    await cacheKeyToSession(newKey);
+    // Clear old session cache — user must re-enter new PIN on next open.
+    clearSessionKey();
   };
 
   // Called after PIN verified during removal — save all data as plaintext.
