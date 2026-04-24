@@ -37,6 +37,9 @@ export default function App() {
   // AES-GCM key lives ONLY in memory. Never persisted.
   // null = no PIN / not yet unlocked. Set on successful PIN entry.
   const [encKey, setEncKey] = useState(null);
+  // useRef ensures async callbacks always read the latest sec without stale closure.
+  const secRef = useRef(sec);
+  useEffect(() => { secRef.current = sec; }, [sec]);
 
   const [page, setPage] = useState("dashboard");
   const [editId,setEditId]   = useState(null);
@@ -221,8 +224,8 @@ export default function App() {
         setSec(v => ({ ...v, pinHash, pinSalt, encSalt, pinHashVersion:"v2", attempts:0, totalFailed:0 }));
         setTxs(data.txs); setDrafts(data.drafts); setLists(data.lists); setUser(data.user);
       } else {
-        // Already v2 — derive key and decrypt.
-        key = await deriveEncKey(pin, sec.encSalt);
+        // Already v2 — derive key using fresh sec from ref.
+        key = await deriveEncKey(pin, secRef.current.encSalt);
         const data = await loadAndDecryptAll(key, DEF_LISTS);
         setTxs(data.txs); setDrafts(data.drafts); setLists(data.lists); setUser(data.user);
       }
@@ -242,9 +245,10 @@ export default function App() {
     const pinHash = await hashPinV2(pin, pinSalt);
     const key     = await deriveEncKey(pin, encSalt);
     await encryptAndSaveAll(key, { txs, drafts, lists, user });
-    const newSec = { ...sec, pinHash, pinSalt, encSalt, pinHashVersion:"v2", attempts:0, totalFailed:0, lockedUntil:null };
+    const newSec = { ...secRef.current, pinHash, pinSalt, encSalt, pinHashVersion:"v2", attempts:0, totalFailed:0, lockedUntil:null };
     save(K.sec, newSec); // immediate save — don't rely on useEffect timing
     setSec(newSec);
+    secRef.current = newSec;
     setEncKey(key);
     await cacheKeyToSession(key);
     setSetupMode(false);
@@ -257,9 +261,10 @@ export default function App() {
     const pinHash = await hashPinV2(newPin, pinSalt);
     const newKey  = await deriveEncKey(newPin, encSalt);
     await encryptAndSaveAll(newKey, { txs, drafts, lists, user });
-    const newSec = { ...sec, pinHash, pinSalt, encSalt, pinHashVersion:"v2", attempts:0, totalFailed:0 };
+    const newSec = { ...secRef.current, pinHash, pinSalt, encSalt, pinHashVersion:"v2", attempts:0, totalFailed:0 };
     save(K.sec, newSec); // immediate save
     setSec(newSec);
+    secRef.current = newSec;
     setEncKey(newKey);
     await cacheKeyToSession(newKey);
   };
