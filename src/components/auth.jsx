@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { K, MAX_ATT, LOCK_SEC, WIPE_AT } from '../lib/constants.js';
 import { save } from '../lib/helpers.js';
 import { hashPinV2, hashPinLegacy, loadKeyFromSession } from '../lib/crypto.js';
@@ -169,46 +169,53 @@ function LockScreen({ C, sec, onUnlock, onWipe, t }) {
 
 // ─── SetupPin ────────────────────────────────────────────────────────────────
 function SetupPin({ C, onSave, onSkip, isChange=false, t }) {
-  const [step, setStep]         = useState("enter");
-  const [enterPin, setEnterPin] = useState("");
+  const [step, setStep]             = useState("enter");
+  const [enterPin, setEnterPin]     = useState("");
   const [confirmPin, setConfirmPin] = useState("");
-  const [err, setErr]           = useState("");
+  const [err, setErr]               = useState("");
+  const stepRef = useRef("enter");
 
-  const currentPin    = step === "enter" ? enterPin    : confirmPin;
-  const setCurrentPin = step === "enter" ? setEnterPin : setConfirmPin;
+  // Read current pin values via refs so tap() always has fresh values
+  const enterRef  = useRef("");
+  const confirmRef = useRef("");
+  const setEnterSafe  = v => { enterRef.current  = typeof v === "function" ? v(enterRef.current)  : v; setEnterPin(enterRef.current); };
+  const setConfirmSafe = v => { confirmRef.current = typeof v === "function" ? v(confirmRef.current) : v; setConfirmPin(confirmRef.current); };
 
   const PAD = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
   const tap = k => {
     if (!k) return;
     setErr("");
-    if (k === "⌫") setCurrentPin(p => p.slice(0,-1));
-    else if (currentPin.length < 6) setCurrentPin(p => p + k);
+    if (stepRef.current === "enter") {
+      if (k === "⌫") setEnterSafe(p => p.slice(0,-1));
+      else if (enterRef.current.length < 6) setEnterSafe(p => p + k);
+    } else {
+      if (k === "⌫") setConfirmSafe(p => p.slice(0,-1));
+      else if (confirmRef.current.length < 6) setConfirmSafe(p => p + k);
+    }
   };
 
+  const currentPin = step === "enter" ? enterPin : confirmPin;
   const canProceed = currentPin.length >= 4;
 
-  // Hidden input to capture hardware/software keyboard on Android.
   const handleKeyInput = (e) => {
-    const val = e.target.value;
-    // Only take the last character typed
-    const last = val.slice(-1);
-    if (/\d/.test(last) && currentPin.length < 6) {
-      setCurrentPin(p => p + last);
-    }
-    e.target.value = ""; // always clear
+    const last = e.target.value.slice(-1);
+    if (/\d/.test(last)) tap(last);
+    e.target.value = "";
   };
 
   const next = () => {
-    if (!canProceed) return;
     if (step === "enter") {
-      setConfirmPin("");
+      if (enterPin.length < 4) { setErr(t("Minimalno 4 znamenke")); return; }
+      setConfirmSafe("");
+      stepRef.current = "confirm";
       setStep("confirm");
     } else {
-      if (confirmPin !== enterPin) {
+      if (confirmRef.current !== enterRef.current) {
         setErr(t("PIN-ovi se ne poklapaju"));
-        setEnterPin(""); setConfirmPin(""); setStep("enter");
+        setEnterSafe(""); setConfirmSafe("");
+        stepRef.current = "enter"; setStep("enter");
       } else {
-        onSave(enterPin);
+        onSave(enterRef.current);
       }
     }
   };
@@ -297,7 +304,10 @@ function OnboardingScreen({ C, prefs, updPrefs, user, updUser, lists, updLists, 
             {[1,2,3].map(i => <div key={i} style={{ width: i===step ? 24 : 8, height: 6, borderRadius:4, background: i===step ? C.accent : C.border, transition:"all .3s" }}/>)}
         </div>
         <SetupPin C={C} isChange={false} t={t}
-          onSave={pin => { onSetPin ? onSetPin(pin) : finish(); }}
+          onSave={async pin => {
+            if (onSetPin) await onSetPin(pin);
+            finish();
+          }}
           onSkip={finish} 
         />
       </div>
