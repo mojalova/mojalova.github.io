@@ -28,9 +28,9 @@ function LockScreen({ C, sec, onUnlock, onWipe, t }) {
         // Have cached key → full unlock without PIN.
         await onUnlock(null, false, true);
       } else {
-        // No cached key → just clear the error and let user type PIN normally.
-        // Don't show confusing message, don't block anything.
-        setErr("");
+        // No cached key — biometry verified identity but we need PIN
+        // once per session to derive the AES decryption key.
+        setErr(t("Biometrija uspješna. Unesi PIN jednom za ovu sesiju."));
         setPin("");
       }
     } catch {
