@@ -204,23 +204,23 @@ export default function App() {
     const fn = async () => {
       if (!secRef.current.pinHash) return;
       if (document.hidden) {
-        // Only lock if no biometry — biometry users stay unlocked on minimize.
-        // On full app close, sessionStorage clears anyway so PIN is required.
+        setUnlocked(false);
+        setPage("dashboard"); // always return to home when app goes to background
+      } else {
         const hasBio = secRef.current.bioEnabled && secRef.current.bioCredId;
         if (!hasBio) setUnlocked(false);
-      } else {
-        try {
-          const cachedKey = await loadKeyFromSession();
-          if (cachedKey) {
-            const data = await loadAndDecryptAll(cachedKey, DEF_LISTS);
-            setTxs(data.txs); setDrafts(data.drafts);
-            setLists(data.lists); setUser(data.user);
-            setEncKey(cachedKey);
-            setUnlocked(true);
-          } else if (!secRef.current.bioEnabled) {
-            setUnlocked(false);
-          }
-        } catch { setUnlocked(false); }
+        else {
+          try {
+            const cachedKey = await loadKeyFromSession();
+            if (cachedKey) {
+              const data = await loadAndDecryptAll(cachedKey, DEF_LISTS);
+              setTxs(data.txs); setDrafts(data.drafts);
+              setLists(data.lists); setUser(data.user);
+              setEncKey(cachedKey);
+              setUnlocked(true);
+            }
+          } catch { /* stay locked */ }
+        }
       }
     };
     document.addEventListener("visibilitychange", fn);
