@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { K, DEF_LISTS, T, MONTHS, MONTHS_EN, MSHORT, MSHORT_EN, MAX_ATT, BACKUP_SNOOZE_MS } from '../lib/constants.js';
+import { K, DEF_LISTS, T, MONTHS, MONTHS_EN, MSHORT, MSHORT_EN, MAX_ATT, BACKUP_SNOOZE_MS, CURRENCIES, TIMEZONES } from '../lib/constants.js';
 import { fmtEur, fDate, load, save, curYear, buildCSV, buildSummary, nativeSaveAndShare, isCapacitor } from '../lib/helpers.js';
 import { hashPinV2, hashPinLegacy } from '../lib/crypto.js';
 import { Ic, StickyHeader } from './ui.jsx';
@@ -789,6 +789,28 @@ function GeneralSettings({ C, txs, setTxs, drafts, lists, setLists, prefs, updPr
                 return <button key={id} onClick={()=>updPrefs({lang:id})} style={{ padding:"10px 6px", borderRadius:11, border:`1.5px solid ${a?C.accent:C.border}`, background:a?`${C.accent}15`:"transparent", color:a?C.accent:C.textMuted, fontSize:12, fontWeight:a?700:500, cursor:"pointer" }}>{lb}</button>;
               })}
             </div>
+          </div>
+
+          {/* Currency selector */}
+          <div style={{ marginBottom:16 }}>
+            <p style={{ fontSize:12, color:C.textMuted, marginBottom:8 }}>{t("Valuta")}</p>
+            <select value={prefs.currency||"EUR"} onChange={e=>updPrefs({currency:e.target.value})}
+              style={{ width:"100%", height:42, padding:"0 12px", background:C.cardAlt, border:`1.5px solid ${C.border}`, borderRadius:11, color:C.text, fontSize:13 }}>
+              {CURRENCIES.map(c => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Timezone selector */}
+          <div style={{ marginBottom:4 }}>
+            <p style={{ fontSize:12, color:C.textMuted, marginBottom:8 }}>{t("Vremenska zona")}</p>
+            <select value={prefs.timezone||"Europe/Zagreb"} onChange={e=>updPrefs({timezone:e.target.value})}
+              style={{ width:"100%", height:42, padding:"0 12px", background:C.cardAlt, border:`1.5px solid ${C.border}`, borderRadius:11, color:C.text, fontSize:13 }}>
+              {TIMEZONES.map(tz => (
+                <option key={tz.value} value={tz.value}>{tz.label}</option>
+              ))}
+            </select>
           </div>
         </div>
 
