@@ -9,6 +9,19 @@ function TxList({ C, data, year, filter, setFilter, onEdit, onDelete, onDeleteGr
   const [page, setPage]    = useState(1);
   const PAGE_SIZE = 50;
 
+  // Default to overdue on mount
+  useEffect(() => { setFilter("overdue"); }, []);
+
+  // Color map for filter → left border color
+  const filterColor = {
+    all:        null, // use type-based color
+    expense:    C.income,
+    pending:    C.warning,
+    processing: "#FB923C",
+    income:     C.income,
+    overdue:    C.expense, // keep as-is
+  };
+
   const rows = useMemo(()=>{
     let f = data.filter(x=>new Date(x.date).getFullYear()===year);
     if (filter==="expense")  f = f.filter(x=>x.type==="Isplata" && x.status==="Plaćeno");
@@ -76,8 +89,15 @@ function TxList({ C, data, year, filter, setFilter, onEdit, onDelete, onDeleteGr
               <p style={{ fontSize:14, fontWeight:600, color:C.text }}>{t("Nema transakcija")}</p>
               <p style={{ fontSize:12, marginTop:4 }}>{q ? t("Pokušajte s drugim pojmom za pretragu.") : filter !== "all" ? t("Nema stavki za odabrani filter.") : t("Pritisnite + za dodavanje.")}</p>
             </div>
-          : pageRows.map((tx,i)=>(
-            <div key={tx.id} className="su" style={{ background:C.card, border:`1px solid ${C.border}`, borderLeft:`3px solid ${tx.installmentGroup?C.warning:tx.type==="Primitak"?C.income:C.expense}`, borderRadius:14, padding:13, marginBottom:8, animationDelay:`${i*.02}s` }}>
+          : pageRows.map((tx,i)=>{
+            // Left border color: filter-based (except overdue keeps type-based), fallback to type
+            const leftColor = filter === "overdue"
+              ? (tx.installmentGroup ? C.warning : tx.type==="Primitak" ? C.income : C.expense)
+              : filter === "all"
+                ? (tx.installmentGroup ? C.warning : tx.type==="Primitak" ? C.income : C.expense)
+                : (filterColor[filter] || (tx.type==="Primitak" ? C.income : C.expense));
+            return (
+            <div key={tx.id} className="su" style={{ background:C.card, border:`1px solid ${C.border}`, borderLeft:`3px solid ${leftColor}`, borderRadius:14, padding:13, marginBottom:8, animationDelay:`${i*.02}s` }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"stretch" }}>
                 <div style={{ flex:1, minWidth:0, textAlign:"left" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
@@ -117,7 +137,8 @@ function TxList({ C, data, year, filter, setFilter, onEdit, onDelete, onDeleteGr
               )}
               {tx.notes && <div style={{ fontSize:11, color:C.textMuted, marginTop:7, fontStyle:"italic", borderTop:`1px solid ${C.border}`, paddingTop:7, textAlign:"left" }}>💬 {tx.notes}</div>}
             </div>
-          ))
+            );
+          })
         }
         <div style={{ textAlign:"center", padding:"10px 0", color:C.textMuted, fontSize:12 }}>
           {rows.length} transakcija · {year}.
