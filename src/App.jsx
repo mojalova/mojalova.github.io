@@ -555,6 +555,19 @@ export default function App() {
 
   const wrap = { background:C.bg, minHeight:"100vh", width:"100%", color:C.text, fontFamily:"'Inter',sans-serif", maxWidth:480, margin:"0 auto", transition:"background .3s,color .3s" };
 
+  // Show loading while auth state resolves (prevents white flash)
+  if (!authReady) return (
+    <div style={{...wrap, display:"flex", alignItems:"center", justifyContent:"center"}}>
+      <style>{gs}</style>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ width:56, height:56, borderRadius:16, background:`linear-gradient(135deg,${C.accent},${C.accentDk||C.accent})`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", animation:"pulse 1.5s ease-in-out infinite" }}>
+          <Ic n="wallet" s={26} c="#fff"/>
+        </div>
+        <span style={{ color:C.textMuted, fontSize:13 }}>Moja lova</span>
+      </div>
+    </div>
+  );
+
   // Show language selection on very first launch (before auth)
   // Skip if: user already chose language, or has active session, or auth not ready yet
   if (!prefs.langChosen && authReady && !supaUser) {
@@ -620,17 +633,14 @@ export default function App() {
   if (!prefs.onboarded) {
     return (
       <div style={wrap}><style>{gs}</style>
-        <OnboardingScreen C={C} prefs={prefs} updPrefs={updP} user={user} updUser={updU} lists={lists} updLists={setLists} updSec={updS} t={t} onSetPin={handleFirstSetPin} finish={() => {
-          updP({onboarded:true, firstUseAt: Date.now()});
-          setUnlocked(true);
-          // Check for first expense from onboarding step 4
-          if (lists._firstTx) {
-            const tx = { ...lists._firstTx, id: Date.now().toString(), installments: 0 };
-            setTxs(p => [...p, tx]);
-            queueSync([tx]);
-            setLists(l => { const { _firstTx, ...rest } = l; return rest; });
-          }
-        }} />
+        <OnboardingScreen C={C} prefs={prefs} updPrefs={updP} user={user} updUser={updU} lists={lists} updLists={setLists} updSec={updS} t={t} onSetPin={handleFirstSetPin}
+          onAddFirstTx={(tx) => {
+            const newTx = { ...tx, id: Date.now().toString(), installments: 0 };
+            setTxs(p => [...p, newTx]);
+            queueSync([newTx]);
+          }}
+          finish={() => { updP({onboarded:true, firstUseAt: Date.now()}); setUnlocked(true); }}
+        />
       </div>
     );
   }
