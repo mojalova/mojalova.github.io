@@ -934,7 +934,7 @@ function GeneralSettings({ C, txs, setTxs, drafts, lists, setLists, prefs, updPr
         <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:13, padding:15, marginBottom:28, marginTop:24 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
             <div style={{ width:40, height:40, borderRadius:12, background:`linear-gradient(135deg,${C.accent},${C.accentDk})`, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="wallet" s={20} c="#fff"/></div>
-            <div style={{ flex:1 }}><div style={{ fontSize:15, fontWeight:700, color:C.text }}>{t("Moja lova")}</div><div style={{ fontSize:11, color:C.textMuted }}>{t("Verzija")} 1.2</div></div>
+            <div style={{ flex:1 }}><div style={{ fontSize:15, fontWeight:700, color:C.text }}>{t("Moja lova")}</div><div style={{ fontSize:11, color:C.textMuted }}>{t("Verzija")} .4</div></div>
             {onAbout && (
               <button onClick={onAbout}
                 style={{ width:32, height:32, borderRadius:"50%", background:`${C.accent}20`, border:`1.5px solid ${C.accent}50`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
@@ -1379,7 +1379,7 @@ Za pitanja o privatnosti: bvivoda@gmail.com`
     },
     contact: {
       title: t("Kontaktiraj nas"),
-      body: `Moja lova — v1.3
+      body: `Moja lova — v.4
 ${lang === "en" ? "Author" : "Autor"}: Bojan Vivoda
 Email: bvivoda@gmail.com
 
@@ -1438,7 +1438,7 @@ Hvala što koristiš Moja lova!`
     diagnostics: {
       title: t("Dijagnostika"),
       body: [
-        `${lang==="en"?"App version":"Verzija aplikacije"}: 1.3`,
+        `${lang==="en"?"App version":"Verzija aplikacije"}: .4`,
         `${lang==="en"?"Platform":"Platforma"}: ${typeof window !== "undefined" && window.Capacitor && window.Capacitor.isNativePlatform() ? "Android APK" : "Web / PWA"}`,
         `${lang==="en"?"User Agent":"User Agent"}: ${typeof navigator !== "undefined" ? navigator.userAgent : "N/A"}`,
         `${lang==="en"?"Language":"Jezik"}: ${lang === "hr" ? "Hrvatski" : "English"}`,
@@ -1475,7 +1475,7 @@ Hvala što koristiš Moja lova!`
               </div>
               <div>
                 <div style={{ fontSize:17, fontWeight:700, color:C.text }}>Moja lova</div>
-                <div style={{ fontSize:12, color:C.textMuted }}>{t("Verzija")} 1.2 · © 2026 Bojan Vivoda</div>
+                <div style={{ fontSize:12, color:C.textMuted }}>{t("Verzija")} .4 · © 2026 Bojan Vivoda</div>
               </div>
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
@@ -1668,7 +1668,7 @@ function Settings({ C, txs, setTxs, drafts, prefs, updPrefs, user, updUser, list
         <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:13, padding:15, marginBottom:28, marginTop:24 }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
             <div style={{ width:40, height:40, borderRadius:12, background:`linear-gradient(135deg,${C.accent},${C.accentDk})`, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="wallet" s={20} c="#fff"/></div>
-            <div style={{ flex:1 }}><div style={{ fontSize:15, fontWeight:700, color:C.text }}>{t("Moja lova")}</div><div style={{ fontSize:11, color:C.textMuted }}>{t("Verzija")} 1.2</div></div>
+            <div style={{ flex:1 }}><div style={{ fontSize:15, fontWeight:700, color:C.text }}>{t("Moja lova")}</div><div style={{ fontSize:11, color:C.textMuted }}>{t("Verzija")} .4</div></div>
             <button onClick={()=>setSubPg("about")}
               style={{ width:32, height:32, borderRadius:"50%", background:`${C.accent}20`, border:`1.5px solid ${C.accent}50`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
               <span style={{ fontSize:14, fontWeight:700, color:C.accent, fontFamily:"serif", lineHeight:1 }}>i</span>
