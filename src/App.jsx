@@ -14,7 +14,7 @@ import { uploadAll, downloadAll } from "./lib/sync.js";
 
 // ─── Components ───────────────────────────────────────────────────────────────
 import { Ic, QuickAddModal, ActionHubModal } from "./components/ui.jsx";
-import { LockScreen, SetupPin, OnboardingScreen, LanguageScreen } from "./components/auth.jsx";
+import { LockScreen, SetupPin, OnboardingScreen } from "./components/auth.jsx";
 import AuthScreen from "./components/AuthScreen.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import Dashboard from "./components/Dashboard.jsx";
@@ -568,21 +568,24 @@ export default function App() {
     </div>
   );
 
-  // Show language selection on very first launch (before auth)
-  // Skip if: user already chose language, or has active session, or auth not ready yet
-  if (!prefs.langChosen && authReady && !supaUser) {
-    return (
-      <div style={wrap}><style>{gs}</style>
-        <LanguageScreen C={C} onSelect={(lang) => { updP({ lang, langChosen: true }); }}/>
-      </div>
-    );
-  }
+  // Auto-detect language from browser timezone on first launch
+  useEffect(() => {
+    if (!prefs.langChosen) {
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const isHR = tz === "Europe/Zagreb";
+        updP({ lang: isHR ? "hr" : "en", langChosen: true });
+      } catch {
+        updP({ lang: "en", langChosen: true });
+      }
+    }
+  }, []);
 
   // Show AuthScreen if not logged in (and auth state is resolved)
   if (authReady && !supaUser) {
     return (
       <div style={wrap}><style>{gs}</style>
-        <AuthScreen C={C} t={t} onSuccess={(session) => setSupaUser(session?.user)}/>
+        <AuthScreen C={C} t={t} lang={lang} onLangChange={(l) => updP({ lang: l })} onSuccess={(session) => setSupaUser(session?.user)}/>
       </div>
     );
   }
